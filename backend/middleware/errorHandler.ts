@@ -83,6 +83,7 @@ export const errorHandler: ErrorRequestHandler = (err: unknown, req, res, next) 
     method: req.method,
     path: req.originalUrl.split('?')[0],
     code: error.code,
+    userId: req.user?.id,
     // Only the names of invalid fields are logged, never the submitted values.
     fields: error.errors?.map((item) => item.field),
   };

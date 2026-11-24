@@ -24,6 +24,7 @@ export const requestLogger: RequestHandler = (req, res, next) => {
       status: res.statusCode,
       durationMs: Math.round(durationMs * 10) / 10,
       ip: req.ip,
+      userId: req.user?.id,
     });
   });
 
