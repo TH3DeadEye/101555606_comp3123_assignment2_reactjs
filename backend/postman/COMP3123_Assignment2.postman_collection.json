@@ -1,0 +1,4235 @@
+{
+  "info": {
+    "name": "COMP3123 Assignment 2 - Employee Manager API",
+    "description": "Tests for the Employee Manager backend (Assignment 1 backend, updated for Assignment 2).\n\nHow to run:\n1. Start the backend (default http://localhost:5001) and MongoDB.\n2. Set the working directory to backend/postman so the picture files are found.\n3. Run the collection in order (Collection Runner), or from a terminal:\n   npx newman run COMP3123_Assignment2.postman_collection.json --working-dir .\n\nChange the baseUrl collection variable to test another address (for example a cloud deployment).\nFolder 8 deliberately triggers rate limiting; see its description before re-running.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5001",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Health check",
+      "item": [
+        {
+          "name": "GET /health",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// A fresh set of users for every run, so the collection can be run again on the same database.",
+                  "const id = Date.now().toString(36);",
+                  "const set = (k, v) => pm.collectionVariables.set(k, v);",
+                  "set('runId', id);",
+                  "set('usernameA', 'pm_a_' + id);",
+                  "set('emailA', 'pm_a_' + id + '@example.com');",
+                  "set('usernameB', 'pm_b_' + id);",
+                  "set('emailB', 'pm_b_' + id + '@example.com');",
+                  "set('password', 'Str0ng!Pass');",
+                  "['tokenA','tokenB','userIdA','userIdB','employeeIdA','employeeIdA2','employeeIdB','employeeIdPic',",
+                  " 'pictureUrl','oldPictureUrl','rateLimitCount','signupRateLimitCount'].forEach(k => pm.collectionVariables.unset(k));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK and the API reports it is running\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql(\"ok\");",
+                  "  pm.expect(body.database).to.eql(\"connected\");",
+                  "  pm.expect(body.uptime_seconds).to.be.a('number');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "description": "Used by Docker and cloud platforms as the health check. Also creates fresh test users for this run."
+    },
+    {
+      "name": "1. Signup",
+      "item": [
+        {
+          "name": "1.1 Valid signup (User A)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"201 Created, user returned without a password\", () => {",
+                  "  pm.response.to.have.status(201);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.user).to.have.property('_id');",
+                  "  pm.expect(body.user.username).to.eql(pm.collectionVariables.get('usernameA'));",
+                  "  pm.expect(body.user).to.not.have.property('password');",
+                  "  pm.collectionVariables.set('userIdA', body.user._id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/user/signup",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "user",
+                "signup"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{usernameA}}\",\n  \"email\": \"{{emailA}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "1.2 Valid signup (User B)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"201 Created\", () => {",
+                  "  pm.response.to.have.status(201);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.user).to.not.have.property('password');",
+                  "  pm.collectionVariables.set('userIdB', body.user._id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/user/signup",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "user",
+                "signup"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{usernameB}}\",\n  \"email\": \"{{emailB}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "1.3 Duplicate username (409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"409 CONFLICT\", () => {",
+                  "  pm.response.to.have.status(409);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql(\"error\");",
+                  "  pm.expect(body.code).to.eql(\"CONFLICT\");",
+                  "  pm.expect(body.message).to.be.a('string');",
+                  "  pm.expect((body.errors || []).map(e => e.field)).to.include.members([\"username\"]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/user/signup",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "user",
+                "signup"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{usernameA}}\",\n  \"email\": \"different.{{emailA}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "1.4 Duplicate email (409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"409 CONFLICT\", () => {",
+                  "  pm.response.to.have.status(409);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql(\"error\");",
+                  "  pm.expect(body.code).to.eql(\"CONFLICT\");",
+                  "  pm.expect(body.message).to.be.a('string');",
+                  "  pm.expect((body.errors || []).map(e => e.field)).to.include.members([\"email\"]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/user/signup",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "user",
+                "signup"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"other_{{usernameA}}\",\n  \"email\": \"{{emailA}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "1.5 Invalid email (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 VALIDATION_ERROR\", () => {",
+                  "  pm.response.to.have.status(400);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql(\"error\");",
+                  "  pm.expect(body.code).to.eql(\"VALIDATION_ERROR\");",
+                  "  pm.expect(body.message).to.be.a('string');",
+                  "  pm.expect((body.errors || []).map(e => e.field)).to.include.members([\"email\"]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/user/signup",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "user",
+                "signup"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"pm_bad_email\",\n  \"email\": \"not-an-email\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "1.6 Invalid password (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 VALIDATION_ERROR\", () => {",
+                  "  pm.response.to.have.status(400);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql(\"error\");",
+                  "  pm.expect(body.code).to.eql(\"VALIDATION_ERROR\");",
+                  "  pm.expect(body.message).to.be.a('string');",
+                  "  pm.expect((body.errors || []).map(e => e.field)).to.include.members([\"password\"]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/user/signup",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "user",
+                "signup"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"pm_bad_pw\",\n  \"email\": \"bad.pw@example.com\",\n  \"password\": \"abc\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "1.7 Missing required fields (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 VALIDATION_ERROR\", () => {",
+                  "  pm.response.to.have.status(400);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql(\"error\");",
+                  "  pm.expect(body.code).to.eql(\"VALIDATION_ERROR\");",
+                  "  pm.expect(body.message).to.be.a('string');",
+                  "  pm.expect((body.errors || []).map(e => e.field)).to.include.members([\"username\", \"email\", \"password\"]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/user/signup",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "user",
+                "signup"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ],
+      "description": "Registers two users (User A and User B) for the rest of the collection, then tries invalid and duplicate signups."
+    },
+    {
+      "name": "2. Login",
+      "item": [
+        {
+          "name": "2.1 Login with username (User A)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK and a JWT is returned\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.token).to.match(/^[\\w-]+\\.[\\w-]+\\.[\\w-]+$/);",
+                  "  pm.expect(body.user).to.not.have.property('password');",
+                  "  pm.collectionVariables.set('tokenA', body.token);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/user/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "user",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{usernameA}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "2.2 Login with email (User A)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK with email + password\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().token).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/user/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "user",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{emailA}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "2.3 Login with username (User B)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.collectionVariables.set('tokenB', pm.response.json().token);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/user/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "user",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{usernameB}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "2.4 Wrong password (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"401 INVALID_CREDENTIALS\", () => {",
+                  "  pm.response.to.have.status(401);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql(\"error\");",
+                  "  pm.expect(body.code).to.eql(\"INVALID_CREDENTIALS\");",
+                  "  pm.expect(body.message).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/user/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "user",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{usernameA}}\",\n  \"password\": \"WrongPass1!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "2.5 Unknown user (401, same message as wrong password)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"401 INVALID_CREDENTIALS\", () => {",
+                  "  pm.response.to.have.status(401);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql(\"error\");",
+                  "  pm.expect(body.code).to.eql(\"INVALID_CREDENTIALS\");",
+                  "  pm.expect(body.message).to.be.a('string');",
+                  "});",
+                  "pm.test(\"does not reveal whether the account exists\", () => {",
+                  "  pm.expect(pm.response.json().message).to.eql('Invalid username/email or password.');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/user/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "user",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"no_such_user_{{runId}}\",\n  \"password\": \"WrongPass1!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "2.6 Missing credentials (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 VALIDATION_ERROR\", () => {",
+                  "  pm.response.to.have.status(400);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql(\"error\");",
+                  "  pm.expect(body.code).to.eql(\"VALIDATION_ERROR\");",
+                  "  pm.expect(body.message).to.be.a('string');",
+                  "  pm.expect((body.errors || []).map(e => e.field)).to.include.members([\"username\"]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/user/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "user",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ],
+      "description": "Logs both users in and stores their JWTs in collection variables (tokenA, tokenB)."
+    },
+    {
+      "name": "3. Employees (User A)",
+      "item": [
+        {
+          "name": "3.1 Create employee (JSON)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"201 Created, owned by User A, no picture yet\", () => {",
+                  "  pm.response.to.have.status(201);",
+                  "  const e = pm.response.json();",
+                  "  pm.expect(e.user).to.eql(pm.collectionVariables.get('userIdA'));",
+                  "  pm.expect(e.profile_picture).to.eql(null);",
+                  "  pm.expect(e.salary).to.eql(85000);",
+                  "  pm.collectionVariables.set('employeeIdA', e._id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"first_name\": \"Jane\",\n  \"last_name\": \"Doe\",\n  \"email\": \"jane.doe@corp.example\",\n  \"position\": \"Software Engineer\",\n  \"salary\": 85000,\n  \"date_of_joining\": \"2024-03-01\",\n  \"department\": \"Engineering\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "3.2 Create a second employee",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"201 Created (salary sent as text is accepted)\", () => {",
+                  "  pm.response.to.have.status(201);",
+                  "  const e = pm.response.json();",
+                  "  pm.expect(e.salary).to.eql(60000.5);",
+                  "  pm.collectionVariables.set('employeeIdA2', e._id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"first_name\": \"Ann\",\n  \"last_name\": \"Lee\",\n  \"email\": \"ann.lee@corp.example\",\n  \"position\": \"Analyst\",\n  \"salary\": \"60000.50\",\n  \"date_of_joining\": \"2023-05-15\",\n  \"department\": \"Finance\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "3.3 List employees",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK, only User A's two employees\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const list = pm.response.json();",
+                  "  pm.expect(list).to.be.an('array').with.lengthOf(2);",
+                  "  list.forEach(e => pm.expect(e.user).to.eql(pm.collectionVariables.get('userIdA')));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "3.4 Get one employee",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK and the right employee\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const e = pm.response.json();",
+                  "  pm.expect(e._id).to.eql(pm.collectionVariables.get('employeeIdA'));",
+                  "  pm.expect(e.email).to.eql('jane.doe@corp.example');",
+                  "  pm.expect(e).to.have.property('profile_picture');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees/{{employeeIdA}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees",
+                "{{employeeIdA}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "3.5 Update employee (partial PUT)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK, changed fields updated, the rest untouched\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const e = pm.response.json();",
+                  "  pm.expect(e.position).to.eql('Senior Software Engineer');",
+                  "  pm.expect(e.salary).to.eql(95000.5);",
+                  "  pm.expect(e.department).to.eql('Engineering');",
+                  "  pm.expect(e.user).to.eql(pm.collectionVariables.get('userIdA'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees/{{employeeIdA}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees",
+                "{{employeeIdA}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"position\": \"Senior Software Engineer\",\n  \"salary\": 95000.5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "3.6 Search by department (partial, case-insensitive)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK and only the Engineering employee\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const list = pm.response.json();",
+                  "  pm.expect(list).to.be.an('array').with.lengthOf(1);",
+                  "  pm.expect(list[0].department).to.eql('Engineering');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees/search?department=engin",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "department",
+                  "value": "engin"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "3.7 Search by position",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK and only the analyst\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const list = pm.response.json();",
+                  "  pm.expect(list).to.be.an('array').with.lengthOf(1);",
+                  "  pm.expect(list[0].position).to.eql('Analyst');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees/search?position=ANALYST",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "position",
+                  "value": "ANALYST"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "3.8 Search by department and position",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK, both filters must match\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const list = pm.response.json();",
+                  "  pm.expect(list).to.have.lengthOf(1);",
+                  "  pm.expect(list[0].first_name).to.eql('Jane');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees/search?department=eng&position=senior",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "department",
+                  "value": "eng"
+                },
+                {
+                  "key": "position",
+                  "value": "senior"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "3.9 Search with no match (empty array)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK and an empty array\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json()).to.eql([]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees/search?department=Nonexistent",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "department",
+                  "value": "Nonexistent"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "3.10 Search text is not a regular expression",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK and nothing matches the literal text .*\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json()).to.eql([]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees/search?department=.*",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "department",
+                  "value": ".*"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "3.11 Search without parameters (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 VALIDATION_ERROR\", () => {",
+                  "  pm.response.to.have.status(400);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql(\"error\");",
+                  "  pm.expect(body.code).to.eql(\"VALIDATION_ERROR\");",
+                  "  pm.expect(body.message).to.be.a('string');",
+                  "  pm.expect((body.errors || []).map(e => e.field)).to.include.members([\"department\"]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees/search",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees",
+                "search"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "description": "Create, list, read, update and search as User A."
+    },
+    {
+      "name": "4. Validation and authentication failures",
+      "item": [
+        {
+          "name": "4.1 Create: missing fields (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 VALIDATION_ERROR\", () => {",
+                  "  pm.response.to.have.status(400);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql(\"error\");",
+                  "  pm.expect(body.code).to.eql(\"VALIDATION_ERROR\");",
+                  "  pm.expect(body.message).to.be.a('string');",
+                  "  pm.expect((body.errors || []).map(e => e.field)).to.include.members([\"first_name\", \"last_name\", \"email\", \"position\", \"salary\", \"date_of_joining\", \"department\"]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "4.2 Create: invalid email (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 VALIDATION_ERROR\", () => {",
+                  "  pm.response.to.have.status(400);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql(\"error\");",
+                  "  pm.expect(body.code).to.eql(\"VALIDATION_ERROR\");",
+                  "  pm.expect(body.message).to.be.a('string');",
+                  "  pm.expect((body.errors || []).map(e => e.field)).to.include.members([\"email\"]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"first_name\": \"Bad\",\n  \"last_name\": \"Email\",\n  \"email\": \"nope\",\n  \"position\": \"Dev\",\n  \"salary\": 1000,\n  \"date_of_joining\": \"2024-01-01\",\n  \"department\": \"IT\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "4.3 Create: invalid salary (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 VALIDATION_ERROR\", () => {",
+                  "  pm.response.to.have.status(400);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql(\"error\");",
+                  "  pm.expect(body.code).to.eql(\"VALIDATION_ERROR\");",
+                  "  pm.expect(body.message).to.be.a('string');",
+                  "  pm.expect((body.errors || []).map(e => e.field)).to.include.members([\"salary\"]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"first_name\": \"Bad\",\n  \"last_name\": \"Salary\",\n  \"email\": \"bad.salary@corp.example\",\n  \"position\": \"Dev\",\n  \"salary\": \"abc\",\n  \"date_of_joining\": \"2024-01-01\",\n  \"department\": \"IT\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "4.4 Create: negative salary (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 VALIDATION_ERROR\", () => {",
+                  "  pm.response.to.have.status(400);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql(\"error\");",
+                  "  pm.expect(body.code).to.eql(\"VALIDATION_ERROR\");",
+                  "  pm.expect(body.message).to.be.a('string');",
+                  "  pm.expect((body.errors || []).map(e => e.field)).to.include.members([\"salary\"]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"first_name\": \"Bad\",\n  \"last_name\": \"Salary\",\n  \"email\": \"bad.salary@corp.example\",\n  \"position\": \"Dev\",\n  \"salary\": -5,\n  \"date_of_joining\": \"2024-01-01\",\n  \"department\": \"IT\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "4.5 Create: invalid date (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 VALIDATION_ERROR\", () => {",
+                  "  pm.response.to.have.status(400);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql(\"error\");",
+                  "  pm.expect(body.code).to.eql(\"VALIDATION_ERROR\");",
+                  "  pm.expect(body.message).to.be.a('string');",
+                  "  pm.expect((body.errors || []).map(e => e.field)).to.include.members([\"date_of_joining\"]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"first_name\": \"Bad\",\n  \"last_name\": \"Date\",\n  \"email\": \"bad.date@corp.example\",\n  \"position\": \"Dev\",\n  \"salary\": 1000,\n  \"date_of_joining\": \"2024-02-31\",\n  \"department\": \"IT\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "4.6 Create: client tries to choose the owner (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 VALIDATION_ERROR\", () => {",
+                  "  pm.response.to.have.status(400);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql(\"error\");",
+                  "  pm.expect(body.code).to.eql(\"VALIDATION_ERROR\");",
+                  "  pm.expect(body.message).to.be.a('string');",
+                  "  pm.expect((body.errors || []).map(e => e.field)).to.include.members([\"user\"]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"first_name\": \"Evil\",\n  \"last_name\": \"Plan\",\n  \"email\": \"evil@corp.example\",\n  \"position\": \"Dev\",\n  \"salary\": 1000,\n  \"date_of_joining\": \"2024-01-01\",\n  \"department\": \"IT\",\n  \"user\": \"{{userIdB}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "4.7 List: no JWT (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"401 AUTH_REQUIRED\", () => {",
+                  "  pm.response.to.have.status(401);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql(\"error\");",
+                  "  pm.expect(body.code).to.eql(\"AUTH_REQUIRED\");",
+                  "  pm.expect(body.message).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "4.8 List: invalid JWT (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"401 TOKEN_INVALID\", () => {",
+                  "  pm.response.to.have.status(401);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql(\"error\");",
+                  "  pm.expect(body.code).to.eql(\"TOKEN_INVALID\");",
+                  "  pm.expect(body.message).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer not.a.valid.jwt"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "4.9 List: tampered JWT (401)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Change one character in the middle of the signature so it no longer matches.",
+                  "const t = pm.collectionVariables.get('tokenA');",
+                  "const i = t.length - 10;",
+                  "pm.collectionVariables.set('tamperedToken', t.slice(0, i) + (t[i] === 'A' ? 'B' : 'A') + t.slice(i + 1));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"401 TOKEN_INVALID\", () => {",
+                  "  pm.response.to.have.status(401);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql(\"error\");",
+                  "  pm.expect(body.code).to.eql(\"TOKEN_INVALID\");",
+                  "  pm.expect(body.message).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tamperedToken}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "4.10 Get: invalid employee id (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 VALIDATION_ERROR\", () => {",
+                  "  pm.response.to.have.status(400);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql(\"error\");",
+                  "  pm.expect(body.code).to.eql(\"VALIDATION_ERROR\");",
+                  "  pm.expect(body.message).to.be.a('string');",
+                  "  pm.expect((body.errors || []).map(e => e.field)).to.include.members([\"eid\"]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees/abc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees",
+                "abc"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "4.11 Get: employee that does not exist (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"404 NOT_FOUND\", () => {",
+                  "  pm.response.to.have.status(404);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql(\"error\");",
+                  "  pm.expect(body.code).to.eql(\"NOT_FOUND\");",
+                  "  pm.expect(body.message).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees/000000000000000000000000",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees",
+                "000000000000000000000000"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "4.12 Unsupported route (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"404 ROUTE_NOT_FOUND\", () => {",
+                  "  pm.response.to.have.status(404);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql(\"error\");",
+                  "  pm.expect(body.code).to.eql(\"ROUTE_NOT_FOUND\");",
+                  "  pm.expect(body.message).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/does-not-exist",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "does-not-exist"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "4.13 Malformed JSON body (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 MALFORMED_JSON\", () => {",
+                  "  pm.response.to.have.status(400);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql(\"error\");",
+                  "  pm.expect(body.code).to.eql(\"MALFORMED_JSON\");",
+                  "  pm.expect(body.message).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"first_name\": \"Broken\", ",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ],
+      "description": "Every kind of bad input or missing authentication, with the exact status code expected.\n\nExpired token: not part of this collection because it needs a very short token lifetime. To test it, start the backend with JWT_EXPIRES_IN=5s, log in, wait six seconds and call any employee endpoint: the API answers 401 with code TOKEN_EXPIRED."
+    },
+    {
+      "name": "5. Two-user ownership test",
+      "item": [
+        {
+          "name": "5.1 User B creates an employee",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"201 Created, owned by User B\", () => {",
+                  "  pm.response.to.have.status(201);",
+                  "  const e = pm.response.json();",
+                  "  pm.expect(e.user).to.eql(pm.collectionVariables.get('userIdB'));",
+                  "  pm.collectionVariables.set('employeeIdB', e._id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenB}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"first_name\": \"Bob\",\n  \"last_name\": \"Builder\",\n  \"email\": \"bob.builder@corp.example\",\n  \"position\": \"Foreman\",\n  \"salary\": 60000,\n  \"date_of_joining\": \"2023-01-01\",\n  \"department\": \"Construction\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "5.2 User B lists: only User B's employee",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK, exactly one employee and it belongs to User B\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const list = pm.response.json();",
+                  "  pm.expect(list).to.have.lengthOf(1);",
+                  "  pm.expect(list[0].user).to.eql(pm.collectionVariables.get('userIdB'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenB}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "5.3 User A reads User B's employee (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"403 FORBIDDEN\", () => {",
+                  "  pm.response.to.have.status(403);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql(\"error\");",
+                  "  pm.expect(body.code).to.eql(\"FORBIDDEN\");",
+                  "  pm.expect(body.message).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees/{{employeeIdB}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees",
+                "{{employeeIdB}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "5.4 User A updates User B's employee (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"403 FORBIDDEN\", () => {",
+                  "  pm.response.to.have.status(403);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql(\"error\");",
+                  "  pm.expect(body.code).to.eql(\"FORBIDDEN\");",
+                  "  pm.expect(body.message).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees/{{employeeIdB}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees",
+                "{{employeeIdB}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"salary\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "5.5 User A deletes User B's employee (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"403 FORBIDDEN\", () => {",
+                  "  pm.response.to.have.status(403);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql(\"error\");",
+                  "  pm.expect(body.code).to.eql(\"FORBIDDEN\");",
+                  "  pm.expect(body.message).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees?eid={{employeeIdB}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees"
+              ],
+              "query": [
+                {
+                  "key": "eid",
+                  "value": "{{employeeIdB}}"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "5.6 User A searches User B's department: nothing",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK and an empty array (no leak)\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json()).to.eql([]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees/search?department=Construction",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "department",
+                  "value": "Construction"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "5.7 User B reads User A's employee (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"403 FORBIDDEN\", () => {",
+                  "  pm.response.to.have.status(403);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql(\"error\");",
+                  "  pm.expect(body.code).to.eql(\"FORBIDDEN\");",
+                  "  pm.expect(body.message).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenB}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees/{{employeeIdA}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees",
+                "{{employeeIdA}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "5.8 User B updates User A's employee (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"403 FORBIDDEN\", () => {",
+                  "  pm.response.to.have.status(403);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql(\"error\");",
+                  "  pm.expect(body.code).to.eql(\"FORBIDDEN\");",
+                  "  pm.expect(body.message).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenB}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees/{{employeeIdA}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees",
+                "{{employeeIdA}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"salary\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "5.9 User B deletes User A's employee (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"403 FORBIDDEN\", () => {",
+                  "  pm.response.to.have.status(403);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql(\"error\");",
+                  "  pm.expect(body.code).to.eql(\"FORBIDDEN\");",
+                  "  pm.expect(body.message).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenB}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees?eid={{employeeIdA}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees"
+              ],
+              "query": [
+                {
+                  "key": "eid",
+                  "value": "{{employeeIdA}}"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "5.10 User B searches User A's department: nothing",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK and an empty array (no leak)\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json()).to.eql([]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenB}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees/search?department=Engineering",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "department",
+                  "value": "Engineering"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "5.11 User A's data is unchanged after the attacks",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK and the salary was not changed to 1\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().salary).to.eql(95000.5);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees/{{employeeIdA}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees",
+                "{{employeeIdA}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "5.12 User B's data is unchanged after the attacks",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK and the salary was not changed to 1\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().salary).to.eql(60000);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenB}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees/{{employeeIdB}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees",
+                "{{employeeIdB}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "description": "User A and User B each own employees. Neither can read, change, delete or search the other's."
+    },
+    {
+      "name": "6. Profile pictures",
+      "item": [
+        {
+          "name": "6.1 Create employee with a PNG picture",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"201 Created with a generated, safe file name\", () => {",
+                  "  pm.response.to.have.status(201);",
+                  "  const e = pm.response.json();",
+                  "  pm.expect(e.profile_picture).to.match(/^\\/uploads\\/[0-9a-f-]{36}\\.png$/);",
+                  "  pm.collectionVariables.set('employeeIdPic', e._id);",
+                  "  pm.collectionVariables.set('pictureUrl', e.profile_picture);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "first_name",
+                  "value": "Pia",
+                  "type": "text"
+                },
+                {
+                  "key": "last_name",
+                  "value": "Picture",
+                  "type": "text"
+                },
+                {
+                  "key": "email",
+                  "value": "pia.picture@corp.example",
+                  "type": "text"
+                },
+                {
+                  "key": "position",
+                  "value": "Designer",
+                  "type": "text"
+                },
+                {
+                  "key": "salary",
+                  "value": "50000",
+                  "type": "text"
+                },
+                {
+                  "key": "date_of_joining",
+                  "value": "2024-06-01",
+                  "type": "text"
+                },
+                {
+                  "key": "department",
+                  "value": "Design",
+                  "type": "text"
+                },
+                {
+                  "key": "profile_picture",
+                  "type": "file",
+                  "src": "fixtures/profile.png"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "6.2 The picture is served (no login needed)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK, an image that other origins may display\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.eql('image/png');",
+                  "  pm.expect(pm.response.headers.get('Cross-Origin-Resource-Policy')).to.eql('cross-origin');",
+                  "  pm.expect(pm.response.headers.get('X-Content-Type-Options')).to.eql('nosniff');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{pictureUrl}}",
+              "host": [
+                "{{baseUrl}}{{pictureUrl}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "6.3 GET employee returns the picture path",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK and profile_picture matches\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().profile_picture).to.eql(pm.collectionVariables.get('pictureUrl'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees/{{employeeIdPic}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees",
+                "{{employeeIdPic}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "6.4 List and search return the picture path too",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK, the search result includes profile_picture\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const list = pm.response.json();",
+                  "  pm.expect(list).to.have.lengthOf(1);",
+                  "  pm.expect(list[0].profile_picture).to.eql(pm.collectionVariables.get('pictureUrl'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees/search?department=Design",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "department",
+                  "value": "Design"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "6.5 Replace the picture with a JPEG",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK, new .jpg file name\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const e = pm.response.json();",
+                  "  pm.expect(e.profile_picture).to.match(/\\.jpg$/);",
+                  "  pm.expect(e.profile_picture).to.not.eql(pm.collectionVariables.get('pictureUrl'));",
+                  "  pm.collectionVariables.set('oldPictureUrl', pm.collectionVariables.get('pictureUrl'));",
+                  "  pm.collectionVariables.set('pictureUrl', e.profile_picture);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees/{{employeeIdPic}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees",
+                "{{employeeIdPic}}"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "profile_picture",
+                  "type": "file",
+                  "src": "fixtures/profile.jpg"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "6.6 The replaced picture file is gone",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"404, the old file was deleted\", () => {",
+                  "  pm.response.to.have.status(404);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql(\"error\");",
+                  "  pm.expect(body.code).to.eql(\"ROUTE_NOT_FOUND\");",
+                  "  pm.expect(body.message).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{oldPictureUrl}}",
+              "host": [
+                "{{baseUrl}}{{oldPictureUrl}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "6.7 Replace the picture with a WebP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK, new .webp file name\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const e = pm.response.json();",
+                  "  pm.expect(e.profile_picture).to.match(/\\.webp$/);",
+                  "  pm.collectionVariables.set('pictureUrl', e.profile_picture);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees/{{employeeIdPic}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees",
+                "{{employeeIdPic}}"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "profile_picture",
+                  "type": "file",
+                  "src": "fixtures/profile.webp"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "6.8 Updating text fields keeps the picture",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK, picture unchanged\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const e = pm.response.json();",
+                  "  pm.expect(e.department).to.eql('Product Design');",
+                  "  pm.expect(e.profile_picture).to.eql(pm.collectionVariables.get('pictureUrl'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees/{{employeeIdPic}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees",
+                "{{employeeIdPic}}"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "department",
+                  "value": "Product Design",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "6.9 Wrong file type: text file (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 INVALID_FILE_TYPE\", () => {",
+                  "  pm.response.to.have.status(400);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql(\"error\");",
+                  "  pm.expect(body.code).to.eql(\"INVALID_FILE_TYPE\");",
+                  "  pm.expect(body.message).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "first_name",
+                  "value": "Pia",
+                  "type": "text"
+                },
+                {
+                  "key": "last_name",
+                  "value": "Picture",
+                  "type": "text"
+                },
+                {
+                  "key": "email",
+                  "value": "rejected.txt@corp.example",
+                  "type": "text"
+                },
+                {
+                  "key": "position",
+                  "value": "Designer",
+                  "type": "text"
+                },
+                {
+                  "key": "salary",
+                  "value": "50000",
+                  "type": "text"
+                },
+                {
+                  "key": "date_of_joining",
+                  "value": "2024-06-01",
+                  "type": "text"
+                },
+                {
+                  "key": "department",
+                  "value": "Design",
+                  "type": "text"
+                },
+                {
+                  "key": "profile_picture",
+                  "type": "file",
+                  "src": "fixtures/invalid.txt"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "6.10 Wrong file type: SVG with a script (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 INVALID_FILE_TYPE\", () => {",
+                  "  pm.response.to.have.status(400);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql(\"error\");",
+                  "  pm.expect(body.code).to.eql(\"INVALID_FILE_TYPE\");",
+                  "  pm.expect(body.message).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "first_name",
+                  "value": "Pia",
+                  "type": "text"
+                },
+                {
+                  "key": "last_name",
+                  "value": "Picture",
+                  "type": "text"
+                },
+                {
+                  "key": "email",
+                  "value": "rejected.svg@corp.example",
+                  "type": "text"
+                },
+                {
+                  "key": "position",
+                  "value": "Designer",
+                  "type": "text"
+                },
+                {
+                  "key": "salary",
+                  "value": "50000",
+                  "type": "text"
+                },
+                {
+                  "key": "date_of_joining",
+                  "value": "2024-06-01",
+                  "type": "text"
+                },
+                {
+                  "key": "department",
+                  "value": "Design",
+                  "type": "text"
+                },
+                {
+                  "key": "profile_picture",
+                  "type": "file",
+                  "src": "fixtures/script.svg"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "6.11 File too large: 2.5 MB (413)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"413 FILE_TOO_LARGE\", () => {",
+                  "  pm.response.to.have.status(413);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql(\"error\");",
+                  "  pm.expect(body.code).to.eql(\"FILE_TOO_LARGE\");",
+                  "  pm.expect(body.message).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "first_name",
+                  "value": "Pia",
+                  "type": "text"
+                },
+                {
+                  "key": "last_name",
+                  "value": "Picture",
+                  "type": "text"
+                },
+                {
+                  "key": "email",
+                  "value": "rejected.big@corp.example",
+                  "type": "text"
+                },
+                {
+                  "key": "position",
+                  "value": "Designer",
+                  "type": "text"
+                },
+                {
+                  "key": "salary",
+                  "value": "50000",
+                  "type": "text"
+                },
+                {
+                  "key": "date_of_joining",
+                  "value": "2024-06-01",
+                  "type": "text"
+                },
+                {
+                  "key": "department",
+                  "value": "Design",
+                  "type": "text"
+                },
+                {
+                  "key": "profile_picture",
+                  "type": "file",
+                  "src": "fixtures/oversized.png"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "6.12 Wrong form field name (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 UNEXPECTED_FILE\", () => {",
+                  "  pm.response.to.have.status(400);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql(\"error\");",
+                  "  pm.expect(body.code).to.eql(\"UNEXPECTED_FILE\");",
+                  "  pm.expect(body.message).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "first_name",
+                  "value": "Pia",
+                  "type": "text"
+                },
+                {
+                  "key": "last_name",
+                  "value": "Picture",
+                  "type": "text"
+                },
+                {
+                  "key": "email",
+                  "value": "rejected.field@corp.example",
+                  "type": "text"
+                },
+                {
+                  "key": "position",
+                  "value": "Designer",
+                  "type": "text"
+                },
+                {
+                  "key": "salary",
+                  "value": "50000",
+                  "type": "text"
+                },
+                {
+                  "key": "date_of_joining",
+                  "value": "2024-06-01",
+                  "type": "text"
+                },
+                {
+                  "key": "department",
+                  "value": "Design",
+                  "type": "text"
+                },
+                {
+                  "key": "avatar",
+                  "type": "file",
+                  "src": "fixtures/profile.png"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "6.13 User B cannot change User A's picture (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"403 FORBIDDEN\", () => {",
+                  "  pm.response.to.have.status(403);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql(\"error\");",
+                  "  pm.expect(body.code).to.eql(\"FORBIDDEN\");",
+                  "  pm.expect(body.message).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenB}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees/{{employeeIdPic}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees",
+                "{{employeeIdPic}}"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "profile_picture",
+                  "type": "file",
+                  "src": "fixtures/replacement.png"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "description": "Upload, display, replace and reject pictures. Allowed: JPEG, PNG, WebP up to 2 MB.\n\nThe file requests use relative paths (fixtures/...). In Postman, set the working directory to the backend/postman folder (Settings, General, Working directory), or run with newman --working-dir backend/postman."
+    },
+    {
+      "name": "7. Delete",
+      "item": [
+        {
+          "name": "7.1 User A deletes an employee (204)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"204 No Content and an empty body\", () => {",
+                  "  pm.response.to.have.status(204);",
+                  "  pm.expect(pm.response.text()).to.eql('');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees?eid={{employeeIdA}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees"
+              ],
+              "query": [
+                {
+                  "key": "eid",
+                  "value": "{{employeeIdA}}"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "7.2 Deleting it again (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"404 NOT_FOUND\", () => {",
+                  "  pm.response.to.have.status(404);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql(\"error\");",
+                  "  pm.expect(body.code).to.eql(\"NOT_FOUND\");",
+                  "  pm.expect(body.message).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees?eid={{employeeIdA}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees"
+              ],
+              "query": [
+                {
+                  "key": "eid",
+                  "value": "{{employeeIdA}}"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "7.3 Delete with an invalid eid (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 VALIDATION_ERROR\", () => {",
+                  "  pm.response.to.have.status(400);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql(\"error\");",
+                  "  pm.expect(body.code).to.eql(\"VALIDATION_ERROR\");",
+                  "  pm.expect(body.message).to.be.a('string');",
+                  "  pm.expect((body.errors || []).map(e => e.field)).to.include.members([\"eid\"]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees?eid=abc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees"
+              ],
+              "query": [
+                {
+                  "key": "eid",
+                  "value": "abc"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "7.4 Delete without eid (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 VALIDATION_ERROR\", () => {",
+                  "  pm.response.to.have.status(400);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql(\"error\");",
+                  "  pm.expect(body.code).to.eql(\"VALIDATION_ERROR\");",
+                  "  pm.expect(body.message).to.be.a('string');",
+                  "  pm.expect((body.errors || []).map(e => e.field)).to.include.members([\"eid\"]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "7.5 Delete an employee that has a picture (204)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"204 No Content\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees?eid={{employeeIdPic}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees"
+              ],
+              "query": [
+                {
+                  "key": "eid",
+                  "value": "{{employeeIdPic}}"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "7.6 Its picture file was removed too (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"404, the picture was deleted with the employee\", () => {",
+                  "  pm.response.to.have.status(404);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql(\"error\");",
+                  "  pm.expect(body.code).to.eql(\"ROUTE_NOT_FOUND\");",
+                  "  pm.expect(body.message).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}{{pictureUrl}}",
+              "host": [
+                "{{baseUrl}}{{pictureUrl}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "7.7 User A deletes the last employee (204)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"204 No Content\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees?eid={{employeeIdA2}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees"
+              ],
+              "query": [
+                {
+                  "key": "eid",
+                  "value": "{{employeeIdA2}}"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "7.8 User A's list is now empty",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK and []\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json()).to.eql([]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "7.9 User B deletes their own employee (204)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"204 No Content\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenB}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/emp/employees?eid={{employeeIdB}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "emp",
+                "employees"
+              ],
+              "query": [
+                {
+                  "key": "eid",
+                  "value": "{{employeeIdB}}"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "description": "Delete needs the eid query parameter: DELETE /api/v1/emp/employees?eid=xxx"
+    },
+    {
+      "name": "8. Rate limiting (run last)",
+      "item": [
+        {
+          "name": "8.1 Login with a wrong password until blocked (429)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const count = (pm.collectionVariables.get('rateLimitCount') || 0) + 1;",
+                  "pm.collectionVariables.set('rateLimitCount', count);",
+                  "if (pm.response.code === 429) {",
+                  "  pm.test('429 Too Many Requests after ' + count + ' failed logins', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.code).to.eql('RATE_LIMITED');",
+                  "    pm.expect(body.retry_after_seconds).to.be.a('number').above(0);",
+                  "    pm.expect(pm.response.headers.get('Retry-After')).to.exist;",
+                  "    pm.expect(pm.response.headers.get('RateLimit')).to.exist;",
+                  "  });",
+                  "} else if (count < 30) {",
+                  "  pm.test('401 for failed attempt ' + count, () => pm.response.to.have.status(401));",
+                  "  postman.setNextRequest('8.1 Login with a wrong password until blocked (429)');",
+                  "} else {",
+                  "  pm.test('the login limiter blocked the client within 30 attempts', () => pm.expect.fail('never received 429'));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/user/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "user",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{usernameA}}\",\n  \"password\": \"WrongPass1!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Repeats itself until the API answers 429. The default limit is 10 failed logins per 15 minutes per IP address."
+          },
+          "response": []
+        },
+        {
+          "name": "8.2 A correct login is refused while blocked (429)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"429 RATE_LIMITED\", () => {",
+                  "  pm.response.to.have.status(429);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql(\"error\");",
+                  "  pm.expect(body.code).to.eql(\"RATE_LIMITED\");",
+                  "  pm.expect(body.message).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/user/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "user",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{usernameA}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "8.3 Signup repeatedly until blocked (429)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const n = (pm.collectionVariables.get('signupRateLimitCount') || 0) + 1;",
+                  "pm.collectionVariables.set('signupUser', 'pm_rl_' + pm.collectionVariables.get('runId') + '_' + n);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const count = (pm.collectionVariables.get('signupRateLimitCount') || 0) + 1;",
+                  "pm.collectionVariables.set('signupRateLimitCount', count);",
+                  "if (pm.response.code === 429) {",
+                  "  pm.test('429 Too Many Requests: signup is limited too', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.code).to.eql('RATE_LIMITED');",
+                  "    pm.expect(body.retry_after_seconds).to.be.a('number').above(0);",
+                  "  });",
+                  "} else if (count < 30) {",
+                  "  pm.test('201 for signup ' + count, () => pm.response.to.have.status(201));",
+                  "  postman.setNextRequest('8.3 Signup repeatedly until blocked (429)');",
+                  "} else {",
+                  "  pm.test('the signup limiter blocked the client within 30 attempts', () => pm.expect.fail('never received 429'));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/user/signup",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "user",
+                "signup"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{signupUser}}\",\n  \"email\": \"{{signupUser}}@example.com\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ],
+      "description": "Deliberately triggers the limiters. Afterwards this IP address is blocked from logging in and signing up for the rest of the 15 minute window, so this folder must stay last. Restart the backend (the counters live in memory) or wait 15 minutes before running the collection again."
+    }
+  ]
+}
