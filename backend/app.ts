@@ -35,6 +35,26 @@ export function createApp() {
   );
 
   app.use(requestLogger);
+
+  // Uploaded profile pictures are public files that the frontend shows in <img>
+  // tags from another origin. Helmet's default "Cross-Origin-Resource-Policy:
+  // same-origin" would make the browser refuse them, so it is relaxed for this
+  // folder only. API responses keep the strict default.
+  app.use(
+    '/uploads',
+    (_req, res, next) => {
+      res.set('Cross-Origin-Resource-Policy', 'cross-origin');
+      next();
+    },
+    express.static(env.UPLOAD_DIR, {
+      dotfiles: 'ignore', // .gitkeep and friends are never served
+      index: false, // no directory listing
+      redirect: false,
+      maxAge: '7d', // file names are random and never reused, so caching is safe
+      immutable: true,
+    }),
+  );
+
   app.use('/api', noStore, apiLimiter);
   app.use(express.json({ limit: '10kb' }));
 
