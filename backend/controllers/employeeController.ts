@@ -3,7 +3,12 @@ import { logger } from '../config/logger';
 import { Employee } from '../models/Employee';
 import { currentUser } from '../utils/currentUser';
 import { HttpError } from '../utils/HttpError';
-import { employeeCreateSchema, employeeIdParamsSchema } from '../validators/employeeSchemas';
+import { validationError } from '../utils/validationErrors';
+import {
+  employeeCreateSchema,
+  employeeIdParamsSchema,
+  employeeUpdateSchema,
+} from '../validators/employeeSchemas';
 
 // Case-insensitive alphabetical order (Anna, bob, Chris), not ASCII order.
 const NAME_ORDER = { locale: 'en', strength: 2 } as const;
@@ -61,5 +66,36 @@ export async function getEmployee(req: Request, res: Response): Promise<void> {
 
   const employee = await findOwnedEmployee(eid, user.id);
 
+  res.status(200).json(employee);
+}
+
+// PUT /api/v1/emp/employees/:eid -> 200
+export async function updateEmployee(req: Request, res: Response): Promise<void> {
+  const user = currentUser(req);
+  const { eid } = employeeIdParamsSchema.parse(req.params);
+
+  // Ownership is checked first, so a stranger gets 403/404 whatever they send.
+  await findOwnedEmployee(eid, user.id);
+
+  const changes = employeeUpdateSchema.parse(req.body);
+  if (Object.keys(changes).length === 0) {
+    throw validationError([{ field: 'body', message: 'Send at least one field to update.' }]);
+  }
+
+  // The owner is part of the filter again, so the write itself can never
+  // touch a document that belongs to someone else.
+  const employee = await Employee.findOneAndUpdate({ _id: eid, user: user.id }, changes, {
+    new: true,
+    runValidators: true,
+  });
+  if (!employee) {
+    throw new HttpError(404, 'Employee not found.', { code: 'NOT_FOUND', logContext: { employeeId: eid } });
+  }
+
+  logger.info('Employee updated', {
+    event: 'employee_updated',
+    employeeId: employee.id,
+    fields: Object.keys(changes),
+  });
   res.status(200).json(employee);
 }

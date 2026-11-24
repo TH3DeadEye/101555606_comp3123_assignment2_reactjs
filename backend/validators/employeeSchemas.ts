@@ -77,5 +77,9 @@ export const employeeCreateSchema = z.strictObject(
 
 export type EmployeeInput = z.infer<typeof employeeCreateSchema>;
 
+// PUT: every field is optional but the same rules apply to the ones that are
+// sent, and unknown fields are still rejected.
+export const employeeUpdateSchema = employeeCreateSchema.partial();
+
 // /employees/:eid  (the id is part of the URL path)
 export const employeeIdParamsSchema = z.strictObject({ eid: objectIdField('Employee id') });
