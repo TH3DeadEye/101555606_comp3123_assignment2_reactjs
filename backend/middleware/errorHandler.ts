@@ -90,6 +90,7 @@ export const errorHandler: ErrorRequestHandler = (err: unknown, req, res, next) 
     userId: req.user?.id,
     // Only the names of invalid fields are logged, never the submitted values.
     fields: error.errors?.map((item) => item.field),
+    ...error.logContext,
   };
 
   if (error.status >= 500) {

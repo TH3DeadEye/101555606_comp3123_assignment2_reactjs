@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isObjectId } from '../utils/objectId';
 
 // A string field with friendly messages: "<label> is required." when it is
 // missing and "<label> must be text." when it has the wrong type (for example
@@ -21,3 +22,7 @@ export const emailField = requiredText('Email')
   .min(1, 'Email is required.')
   .toLowerCase()
   .pipe(z.email({ error: 'Enter a valid email address.' }).max(254, 'Email must be at most 254 characters.'));
+
+// A MongoDB ObjectId written as 24 hexadecimal characters.
+export const objectIdField = (label: string) =>
+  requiredText(label).refine(isObjectId, `${label} is not a valid id.`);

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { emailField, requiredText } from './common';
+import { emailField, objectIdField, requiredText } from './common';
 
 // Letters from any language, plus spaces, dots, apostrophes and hyphens
 // (O'Brien, Anne-Marie, José). Anything like <script> is rejected.
@@ -76,3 +76,6 @@ export const employeeCreateSchema = z.strictObject(
 );
 
 export type EmployeeInput = z.infer<typeof employeeCreateSchema>;
+
+// /employees/:eid  (the id is part of the URL path)
+export const employeeIdParamsSchema = z.strictObject({ eid: objectIdField('Employee id') });

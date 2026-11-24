@@ -24,6 +24,9 @@ interface HttpErrorOptions {
   errors?: FieldError[];
   // Only used for 429 responses: how long the client should wait.
   retryAfterSeconds?: number;
+  // Extra facts for the log file only (for example the employee id involved).
+  // They are never sent to the client.
+  logContext?: Record<string, unknown>;
 }
 
 export class HttpError extends Error {
@@ -31,6 +34,7 @@ export class HttpError extends Error {
   readonly code: string;
   readonly errors: FieldError[] | undefined;
   readonly retryAfterSeconds: number | undefined;
+  readonly logContext: Record<string, unknown> | undefined;
 
   constructor(status: number, message: string, options: HttpErrorOptions = {}) {
     super(message);
@@ -39,5 +43,6 @@ export class HttpError extends Error {
     this.code = options.code ?? defaultCodes[status] ?? 'ERROR';
     this.errors = options.errors;
     this.retryAfterSeconds = options.retryAfterSeconds;
+    this.logContext = options.logContext;
   }
 }

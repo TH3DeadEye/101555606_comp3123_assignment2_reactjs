@@ -2,10 +2,32 @@ import type { Request, Response } from 'express';
 import { logger } from '../config/logger';
 import { Employee } from '../models/Employee';
 import { currentUser } from '../utils/currentUser';
-import { employeeCreateSchema } from '../validators/employeeSchemas';
+import { HttpError } from '../utils/HttpError';
+import { employeeCreateSchema, employeeIdParamsSchema } from '../validators/employeeSchemas';
 
 // Case-insensitive alphabetical order (Anna, bob, Chris), not ASCII order.
 const NAME_ORDER = { locale: 'en', strength: 2 } as const;
+
+// Loads an employee only if it belongs to ownerId.
+//
+// The owner is part of the database query itself ({ _id, user }), so another
+// user's employee is never even loaded. Only when nothing is found do we ask
+// a second question, to answer with the right status:
+//   403 Forbidden : the employee exists but belongs to someone else
+//   404 Not Found : there is no employee with that id
+async function findOwnedEmployee(employeeId: string, ownerId: string) {
+  const employee = await Employee.findOne({ _id: employeeId, user: ownerId });
+  if (employee) return employee;
+
+  const existsForAnotherUser = await Employee.exists({ _id: employeeId });
+  if (existsForAnotherUser) {
+    throw new HttpError(403, 'You do not have permission to access this employee.', {
+      code: 'FORBIDDEN',
+      logContext: { employeeId },
+    });
+  }
+  throw new HttpError(404, 'Employee not found.', { code: 'NOT_FOUND', logContext: { employeeId } });
+}
 
 // GET /api/v1/emp/employees -> 200
 // The filter { user } is what guarantees that only the caller's own employees
@@ -30,4 +52,14 @@ export async function createEmployee(req: Request, res: Response): Promise<void>
 
   logger.info('Employee created', { event: 'employee_created', employeeId: employee.id });
   res.status(201).json(employee);
+}
+
+// GET /api/v1/emp/employees/:eid -> 200
+export async function getEmployee(req: Request, res: Response): Promise<void> {
+  const user = currentUser(req);
+  const { eid } = employeeIdParamsSchema.parse(req.params);
+
+  const employee = await findOwnedEmployee(eid, user.id);
+
+  res.status(200).json(employee);
 }
