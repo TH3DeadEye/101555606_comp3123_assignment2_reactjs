@@ -86,3 +86,24 @@ export const employeeIdParamsSchema = z.strictObject({ eid: objectIdField('Emplo
 
 // DELETE /employees?eid=xxx  (the id is a query parameter)
 export const employeeIdQuerySchema = z.strictObject({ eid: objectIdField('Employee id') });
+
+// One search box. Blank values are treated as "not provided", so a client may
+// send both parameters even when only one is filled in.
+const searchTerm = (label: string) =>
+  requiredText(label)
+    .trim()
+    .max(100, `${label} must be at most 100 characters.`)
+    .regex(/^[^\p{C}]*$/u, `${label} contains characters that are not allowed.`)
+    .transform((value) => (value === '' ? undefined : value))
+    .optional();
+
+// GET /employees/search?department=...&position=...
+export const employeeSearchSchema = z
+  .strictObject({
+    department: searchTerm('Department'),
+    position: searchTerm('Position'),
+  })
+  .refine((query) => query.department !== undefined || query.position !== undefined, {
+    error: 'Provide a department, a position, or both.',
+    path: ['department'],
+  });

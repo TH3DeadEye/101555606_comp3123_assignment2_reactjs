@@ -4,6 +4,7 @@ import {
   deleteEmployee,
   getEmployee,
   listEmployees,
+  searchEmployees,
   updateEmployee,
 } from '../controllers/employeeController';
 import { authenticate } from '../middleware/auth';
@@ -16,5 +17,8 @@ employeeRoutes.use(authenticate);
 employeeRoutes.get('/employees', listEmployees);
 employeeRoutes.post('/employees', createEmployee);
 employeeRoutes.delete('/employees', deleteEmployee);
+// /employees/search must be declared before /employees/:eid, otherwise Express
+// would treat the word "search" as an employee id.
+employeeRoutes.get('/employees/search', searchEmployees);
 employeeRoutes.get('/employees/:eid', getEmployee);
 employeeRoutes.put('/employees/:eid', updateEmployee);

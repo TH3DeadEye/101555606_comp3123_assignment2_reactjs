@@ -1,13 +1,16 @@
 import type { Request, Response } from 'express';
 import { logger } from '../config/logger';
-import { Employee } from '../models/Employee';
+import type { QueryFilter } from 'mongoose';
+import { Employee, type IEmployee } from '../models/Employee';
 import { currentUser } from '../utils/currentUser';
+import { escapeRegex } from '../utils/escapeRegex';
 import { HttpError } from '../utils/HttpError';
 import { validationError } from '../utils/validationErrors';
 import {
   employeeCreateSchema,
   employeeIdParamsSchema,
   employeeIdQuerySchema,
+  employeeSearchSchema,
   employeeUpdateSchema,
 } from '../validators/employeeSchemas';
 
@@ -113,4 +116,32 @@ export async function deleteEmployee(req: Request, res: Response): Promise<void>
 
   logger.info('Employee deleted', { event: 'employee_deleted', employeeId: employee.id });
   res.status(204).send();
+}
+
+// GET /api/v1/emp/employees/search?department=...&position=... -> 200
+// Partial, case-insensitive match. When both are given, both must match. An
+// empty array (still 200) means nothing matched.
+export async function searchEmployees(req: Request, res: Response): Promise<void> {
+  const user = currentUser(req);
+  const { department, position } = employeeSearchSchema.parse(req.query);
+
+  // The owner filter is always present, so search can never return another
+  // user's employees whatever the search text is.
+  const filter: QueryFilter<IEmployee> = { user: user.id };
+
+  // The text is escaped first, so it is matched literally and cannot inject a
+  // pattern or a MongoDB operator.
+  if (department) filter.department = new RegExp(escapeRegex(department), 'i');
+  if (position) filter.position = new RegExp(escapeRegex(position), 'i');
+
+  const employees = await Employee.find(filter)
+    .sort({ last_name: 1, first_name: 1 })
+    .collation(NAME_ORDER);
+
+  logger.info('Employee search', {
+    event: 'employee_search',
+    searchedBy: [department && 'department', position && 'position'].filter(Boolean),
+    results: employees.length,
+  });
+  res.status(200).json(employees);
 }
