@@ -22,6 +22,10 @@ function isDuplicateKeyError(err: unknown): err is DuplicateKeyError {
 function fromDuplicateKey(err: DuplicateKeyError): HttpError {
   const keys = Object.keys(err.keyPattern ?? {});
   if (keys.includes('username')) return conflict('username', 'That username is already taken.');
+  // The employee index is { user, email }: unique per owner, not globally.
+  if (keys.includes('user') && keys.includes('email')) {
+    return conflict('email', 'You already have an employee with this email address.');
+  }
   if (keys.includes('email')) return conflict('email', 'That email address is already registered.');
   return new HttpError(409, 'That record already exists.');
 }
