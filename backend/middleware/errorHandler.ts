@@ -1,11 +1,49 @@
 import type { ErrorRequestHandler } from 'express';
+import mongoose from 'mongoose';
+import { ZodError } from 'zod';
 import { logger } from '../config/logger';
 import { HttpError } from '../utils/HttpError';
+import { fromZodError, validationError } from '../utils/validationErrors';
+
+function conflict(field: string, message: string): HttpError {
+  return new HttpError(409, message, { code: 'CONFLICT', errors: [{ field, message }] });
+}
+
+interface DuplicateKeyError {
+  code: 11000;
+  keyPattern?: Record<string, unknown>;
+}
+
+// MongoDB reports a unique-index violation as error code 11000.
+function isDuplicateKeyError(err: unknown): err is DuplicateKeyError {
+  return typeof err === 'object' && err !== null && 'code' in err && err.code === 11000;
+}
+
+function fromDuplicateKey(err: DuplicateKeyError): HttpError {
+  const keys = Object.keys(err.keyPattern ?? {});
+  if (keys.includes('username')) return conflict('username', 'That username is already taken.');
+  if (keys.includes('email')) return conflict('email', 'That email address is already registered.');
+  return new HttpError(409, 'That record already exists.');
+}
 
 // Turns anything that was thrown into an HttpError. Anything we do not
 // recognise becomes a generic 500 so internal details never reach the client.
 function toHttpError(err: unknown): HttpError {
   if (err instanceof HttpError) return err;
+
+  if (err instanceof ZodError) return fromZodError(err);
+
+  if (err instanceof mongoose.Error.ValidationError) {
+    return validationError(
+      Object.values(err.errors).map((item) => ({ field: item.path, message: item.message })),
+    );
+  }
+
+  if (err instanceof mongoose.Error.CastError) {
+    return new HttpError(400, `The value for "${err.path}" is not valid.`, { code: 'INVALID_VALUE' });
+  }
+
+  if (isDuplicateKeyError(err)) return fromDuplicateKey(err);
 
   // Errors raised by express.json() before a route runs
   if (typeof err === 'object' && err !== null && 'type' in err) {
