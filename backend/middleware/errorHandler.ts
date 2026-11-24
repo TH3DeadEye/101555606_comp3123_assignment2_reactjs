@@ -102,5 +102,6 @@ export const errorHandler: ErrorRequestHandler = (err: unknown, req, res, next) 
     code: error.code,
     message: error.message,
     ...(error.errors ? { errors: error.errors } : {}),
+    ...(error.retryAfterSeconds !== undefined ? { retry_after_seconds: error.retryAfterSeconds } : {}),
   });
 };

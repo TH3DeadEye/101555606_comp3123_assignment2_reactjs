@@ -5,6 +5,7 @@ import { env } from './config/env';
 import { errorHandler } from './middleware/errorHandler';
 import { noStore } from './middleware/noStore';
 import { notFound } from './middleware/notFound';
+import { apiLimiter } from './middleware/rateLimiter';
 import { requestLogger } from './middleware/requestLogger';
 import { healthRoutes } from './routes/healthRoutes';
 import { userRoutes } from './routes/userRoutes';
@@ -33,7 +34,7 @@ export function createApp() {
   );
 
   app.use(requestLogger);
-  app.use('/api', noStore);
+  app.use('/api', noStore, apiLimiter);
   app.use(express.json({ limit: '10kb' }));
 
   app.use('/health', healthRoutes);

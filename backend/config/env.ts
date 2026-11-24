@@ -53,6 +53,13 @@ const envSchema = z.object({
         .min(1, 'at least one origin is required'),
     ),
 
+  // Rate limiting (requests are counted per client IP address)
+  RATE_LIMIT_WINDOW_MINUTES: z.coerce.number().int().min(1).default(15),
+  // Failed logins and signup requests allowed per window
+  AUTH_RATE_LIMIT_MAX: z.coerce.number().int().min(1).default(10),
+  // All /api requests allowed per window
+  API_RATE_LIMIT_MAX: z.coerce.number().int().min(1).default(300),
+
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'http', 'verbose', 'debug', 'silly']).default('info'),
   LOG_DIR: z
     .string()

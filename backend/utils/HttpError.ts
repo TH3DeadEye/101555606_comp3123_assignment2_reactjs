@@ -22,12 +22,15 @@ const defaultCodes: Record<number, string> = {
 interface HttpErrorOptions {
   code?: string;
   errors?: FieldError[];
+  // Only used for 429 responses: how long the client should wait.
+  retryAfterSeconds?: number;
 }
 
 export class HttpError extends Error {
   readonly status: number;
   readonly code: string;
   readonly errors: FieldError[] | undefined;
+  readonly retryAfterSeconds: number | undefined;
 
   constructor(status: number, message: string, options: HttpErrorOptions = {}) {
     super(message);
@@ -35,5 +38,6 @@ export class HttpError extends Error {
     this.status = status;
     this.code = options.code ?? defaultCodes[status] ?? 'ERROR';
     this.errors = options.errors;
+    this.retryAfterSeconds = options.retryAfterSeconds;
   }
 }
