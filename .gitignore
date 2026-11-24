@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Environment files: real values are never committed, only the examples
+.env
+.env.*
+!.env.example
+
+# Build output
+dist/
+build/
+coverage/
+
+# Runtime data written by the backend (the .gitkeep files keep the folders)
+backend/logs/*
+!backend/logs/.gitkeep
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Package manager debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS and editor files
+.DS_Store
+.idea/
+.vscode/
