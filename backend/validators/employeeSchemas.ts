@@ -83,3 +83,6 @@ export const employeeUpdateSchema = employeeCreateSchema.partial();
 
 // /employees/:eid  (the id is part of the URL path)
 export const employeeIdParamsSchema = z.strictObject({ eid: objectIdField('Employee id') });
+
+// DELETE /employees?eid=xxx  (the id is a query parameter)
+export const employeeIdQuerySchema = z.strictObject({ eid: objectIdField('Employee id') });

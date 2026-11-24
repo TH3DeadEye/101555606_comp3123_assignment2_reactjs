@@ -7,6 +7,7 @@ import { validationError } from '../utils/validationErrors';
 import {
   employeeCreateSchema,
   employeeIdParamsSchema,
+  employeeIdQuerySchema,
   employeeUpdateSchema,
 } from '../validators/employeeSchemas';
 
@@ -98,4 +99,18 @@ export async function updateEmployee(req: Request, res: Response): Promise<void>
     fields: Object.keys(changes),
   });
   res.status(200).json(employee);
+}
+
+// DELETE /api/v1/emp/employees?eid=xxx -> 204 (no body)
+export async function deleteEmployee(req: Request, res: Response): Promise<void> {
+  const user = currentUser(req);
+  const { eid } = employeeIdQuerySchema.parse(req.query);
+
+  // Changing the eid in the URL cannot bypass this: the lookup is owner-scoped.
+  const employee = await findOwnedEmployee(eid, user.id);
+
+  await Employee.deleteOne({ _id: employee._id, user: user.id });
+
+  logger.info('Employee deleted', { event: 'employee_deleted', employeeId: employee.id });
+  res.status(204).send();
 }
