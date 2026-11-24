@@ -15,6 +15,15 @@ const envSchema = z.object({
     .string()
     .regex(/^mongodb(\+srv)?:\/\//, 'must start with mongodb:// or mongodb+srv://'),
 
+  // Secret used to sign login tokens. A short secret is easy to brute-force,
+  // so anything under 32 characters is rejected at startup.
+  JWT_SECRET: z.string().min(32, 'must be at least 32 characters (generate one with: openssl rand -hex 32)'),
+  // A number followed by s, m, h or d, for example 30m, 1h or 7d.
+  JWT_EXPIRES_IN: z
+    .string()
+    .regex(/^\d+[smhd]$/, 'must look like 30m, 1h or 7d')
+    .default('1h'),
+
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'http', 'verbose', 'debug', 'silly']).default('info'),
   LOG_DIR: z
     .string()
