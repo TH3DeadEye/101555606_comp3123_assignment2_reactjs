@@ -1,4 +1,5 @@
-import axios from 'axios';
+import axios, { isAxiosError } from 'axios';
+import { getToken } from '../utils/session';
 
 const DEFAULT_API_URL = 'http://localhost:5001';
 
@@ -33,3 +34,44 @@ export const api = axios.create({
   timeout: 15_000,
   headers: { Accept: 'application/json' },
 });
+
+// ---- Session handling ------------------------------------------------------
+
+export type UnauthorizedReason = 'expired' | 'invalid';
+type UnauthorizedHandler = (reason: UnauthorizedReason) => void;
+
+let unauthorizedHandler: UnauthorizedHandler | null = null;
+
+// The auth context registers a function here that clears the session and sends
+// the user to the login page. A callback keeps this file free of React.
+export function setUnauthorizedHandler(handler: UnauthorizedHandler | null): void {
+  unauthorizedHandler = handler;
+}
+
+// These two endpoints answer 401 or 409 for ordinary reasons (wrong password,
+// username taken), which must never log anybody out.
+const PUBLIC_ENDPOINTS = ['/user/login', '/user/signup'];
+
+function isPublicEndpoint(url: string | undefined): boolean {
+  return PUBLIC_ENDPOINTS.some((endpoint) => (url ?? '').endsWith(endpoint));
+}
+
+// Every request carries "Authorization: Bearer <jwt>" while a session exists.
+api.interceptors.request.use((config) => {
+  const token = getToken();
+  if (token) config.headers.set('Authorization', `Bearer ${token}`);
+  return config;
+});
+
+// A 401 from a protected endpoint means the token is missing, invalid or
+// expired: tell the auth context so it can clear the session and redirect.
+api.interceptors.response.use(
+  (response) => response,
+  (error: unknown) => {
+    if (isAxiosError(error) && error.response?.status === 401 && !isPublicEndpoint(error.config?.url)) {
+      const body = error.response.data as { code?: unknown } | undefined;
+      unauthorizedHandler?.(body?.code === 'TOKEN_EXPIRED' ? 'expired' : 'invalid');
+    }
+    return Promise.reject(error);
+  },
+);

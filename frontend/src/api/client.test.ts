@@ -1,5 +1,8 @@
-import { describe, expect, it } from 'vitest';
-import { api, resolveApiOrigin } from './client';
+import { AxiosError, type AxiosAdapter, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { makeJwt, testUser } from '../test/helpers';
+import { saveSession } from '../utils/session';
+import { api, resolveApiOrigin, setUnauthorizedHandler } from './client';
 
 describe('resolveApiOrigin', () => {
   it('falls back to the local backend when nothing is configured', () => {
@@ -26,5 +29,104 @@ describe('resolveApiOrigin', () => {
 describe('api client', () => {
   it('sends every request to the versioned API path of the configured origin', () => {
     expect(api.defaults.baseURL).toMatch(/\/api\/v1$/);
+  });
+});
+
+// Replaces the network with a function that answers every request.
+function fakeServer(answer: (config: InternalAxiosRequestConfig) => { status: number; data?: unknown }) {
+  const adapter: AxiosAdapter = (config) =>
+    new Promise((resolve, reject) => {
+      const { status, data } = answer(config);
+      const response = { data, status, statusText: '', headers: {}, config, request: {} } as AxiosResponse;
+      if (status >= 200 && status < 300) resolve(response);
+      else reject(new AxiosError(`Request failed with status code ${status}`, 'ERR_BAD_RESPONSE', config, {}, response));
+    });
+  api.defaults.adapter = adapter;
+}
+
+describe('request interceptor', () => {
+  const originalAdapter = api.defaults.adapter;
+  afterEach(() => {
+    api.defaults.adapter = originalAdapter;
+  });
+
+  it('attaches the JWT as a Bearer token while a session exists', async () => {
+    const token = makeJwt();
+    saveSession({ token, user: testUser });
+    let seen: unknown;
+    fakeServer((config) => {
+      seen = config.headers.get('Authorization');
+      return { status: 200, data: [] };
+    });
+
+    await api.get('/emp/employees');
+
+    expect(seen).toBe(`Bearer ${token}`);
+  });
+
+  it('sends no Authorization header when logged out', async () => {
+    let seen: unknown = 'not-called';
+    fakeServer((config) => {
+      seen = config.headers.get('Authorization');
+      return { status: 200, data: [] };
+    });
+
+    await api.get('/emp/employees');
+
+    expect(seen).toBeUndefined();
+  });
+});
+
+describe('response interceptor (401 handling)', () => {
+  const originalAdapter = api.defaults.adapter;
+  const onUnauthorized = vi.fn();
+
+  beforeEach(() => {
+    onUnauthorized.mockClear();
+    setUnauthorizedHandler(onUnauthorized);
+  });
+  afterEach(() => {
+    api.defaults.adapter = originalAdapter;
+    setUnauthorizedHandler(null);
+  });
+
+  it('reports a 401 from a protected endpoint and still rejects the request', async () => {
+    fakeServer(() => ({ status: 401, data: { status: 'error', code: 'TOKEN_INVALID' } }));
+
+    await expect(api.get('/emp/employees')).rejects.toMatchObject({ response: { status: 401 } });
+
+    expect(onUnauthorized).toHaveBeenCalledExactlyOnceWith('invalid');
+  });
+
+  it('tells an expired token apart from an invalid one', async () => {
+    fakeServer(() => ({ status: 401, data: { status: 'error', code: 'TOKEN_EXPIRED' } }));
+
+    await expect(api.get('/emp/employees')).rejects.toBeDefined();
+
+    expect(onUnauthorized).toHaveBeenCalledExactlyOnceWith('expired');
+  });
+
+  it('does NOT log anyone out when the login itself answers 401 (wrong password)', async () => {
+    fakeServer(() => ({ status: 401, data: { status: 'error', code: 'INVALID_CREDENTIALS' } }));
+
+    await expect(api.post('/user/login', {})).rejects.toBeDefined();
+
+    expect(onUnauthorized).not.toHaveBeenCalled();
+  });
+
+  it('ignores errors that are not 401', async () => {
+    for (const status of [400, 403, 404, 409, 429, 500]) {
+      fakeServer(() => ({ status, data: { status: 'error' } }));
+      await expect(api.get('/emp/employees')).rejects.toBeDefined();
+    }
+
+    expect(onUnauthorized).not.toHaveBeenCalled();
+  });
+
+  it('does not crash when no handler is registered', async () => {
+    setUnauthorizedHandler(null);
+    fakeServer(() => ({ status: 401, data: {} }));
+
+    await expect(api.get('/emp/employees')).rejects.toMatchObject({ response: { status: 401 } });
   });
 });
