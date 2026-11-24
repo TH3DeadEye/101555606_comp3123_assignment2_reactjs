@@ -60,6 +60,14 @@ const envSchema = z.object({
   // All /api requests allowed per window
   API_RATE_LIMIT_MAX: z.coerce.number().int().min(1).default(300),
 
+  // Folder where uploaded profile pictures are stored. In Docker this is a
+  // volume, so the pictures survive container restarts.
+  UPLOAD_DIR: z
+    .string()
+    .min(1)
+    .default('uploads')
+    .transform((dir) => path.resolve(dir)),
+
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'http', 'verbose', 'debug', 'silly']).default('info'),
   LOG_DIR: z
     .string()

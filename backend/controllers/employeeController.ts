@@ -1,10 +1,11 @@
 import type { Request, Response } from 'express';
-import { logger } from '../config/logger';
 import type { QueryFilter } from 'mongoose';
+import { logger } from '../config/logger';
 import { Employee, type IEmployee } from '../models/Employee';
 import { currentUser } from '../utils/currentUser';
 import { escapeRegex } from '../utils/escapeRegex';
 import { HttpError } from '../utils/HttpError';
+import { deleteImage, saveImage } from '../utils/imageStorage';
 import { validationError } from '../utils/validationErrors';
 import {
   employeeCreateSchema,
@@ -54,13 +55,26 @@ export async function listEmployees(req: Request, res: Response): Promise<void> 
 // POST /api/v1/emp/employees -> 201
 export async function createEmployee(req: Request, res: Response): Promise<void> {
   const user = currentUser(req);
+  // The text fields are validated first, so an invalid request writes nothing to disk.
   const input = employeeCreateSchema.parse(req.body);
 
-  // The owner always comes from the verified token, never from the request.
-  const employee = await Employee.create({ ...input, user: user.id });
+  const picture = req.file ? await saveImage(req.file) : null;
 
-  logger.info('Employee created', { event: 'employee_created', employeeId: employee.id });
-  res.status(201).json(employee);
+  try {
+    // The owner always comes from the verified token, never from the request.
+    const employee = await Employee.create({ ...input, profile_picture: picture, user: user.id });
+
+    logger.info('Employee created', {
+      event: 'employee_created',
+      employeeId: employee.id,
+      hasPicture: picture !== null,
+    });
+    res.status(201).json(employee);
+  } catch (error) {
+    // The employee was not saved, so its picture must not be left behind.
+    await deleteImage(picture);
+    throw error;
+  }
 }
 
 // GET /api/v1/emp/employees/:eid -> 200
@@ -79,27 +93,44 @@ export async function updateEmployee(req: Request, res: Response): Promise<void>
   const { eid } = employeeIdParamsSchema.parse(req.params);
 
   // Ownership is checked first, so a stranger gets 403/404 whatever they send.
-  await findOwnedEmployee(eid, user.id);
+  const existing = await findOwnedEmployee(eid, user.id);
 
   const changes = employeeUpdateSchema.parse(req.body);
-  if (Object.keys(changes).length === 0) {
-    throw validationError([{ field: 'body', message: 'Send at least one field to update.' }]);
+  if (Object.keys(changes).length === 0 && !req.file) {
+    throw validationError([
+      { field: 'body', message: 'Send at least one field or a new picture to update.' },
+    ]);
   }
 
-  // The owner is part of the filter again, so the write itself can never
-  // touch a document that belongs to someone else.
-  const employee = await Employee.findOneAndUpdate({ _id: eid, user: user.id }, changes, {
-    new: true,
-    runValidators: true,
-  });
+  const newPicture = req.file ? await saveImage(req.file) : null;
+
+  let employee;
+  try {
+    // The owner is part of the filter again, so the write itself can never
+    // touch a document that belongs to someone else.
+    employee = await Employee.findOneAndUpdate(
+      { _id: eid, user: user.id },
+      newPicture ? { ...changes, profile_picture: newPicture } : changes,
+      { new: true, runValidators: true },
+    );
+  } catch (error) {
+    await deleteImage(newPicture);
+    throw error;
+  }
+
   if (!employee) {
+    await deleteImage(newPicture);
     throw new HttpError(404, 'Employee not found.', { code: 'NOT_FOUND', logContext: { employeeId: eid } });
   }
+
+  // The new picture is saved, so the one it replaced is no longer needed.
+  if (newPicture) await deleteImage(existing.profile_picture);
 
   logger.info('Employee updated', {
     event: 'employee_updated',
     employeeId: employee.id,
     fields: Object.keys(changes),
+    pictureReplaced: newPicture !== null,
   });
   res.status(200).json(employee);
 }
@@ -113,6 +144,9 @@ export async function deleteEmployee(req: Request, res: Response): Promise<void>
   const employee = await findOwnedEmployee(eid, user.id);
 
   await Employee.deleteOne({ _id: employee._id, user: user.id });
+
+  // The record is gone, so its picture file is removed too.
+  await deleteImage(employee.profile_picture);
 
   logger.info('Employee deleted', { event: 'employee_deleted', employeeId: employee.id });
   res.status(204).send();
