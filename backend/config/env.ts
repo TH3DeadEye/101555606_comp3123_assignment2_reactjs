@@ -6,6 +6,16 @@ import { z } from 'zod';
 // for example inside Docker where the variables are injected by Compose).
 dotenv.config({ quiet: true });
 
+// True for values such as http://localhost:5173 or https://app.example.com.
+function isPlainOrigin(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return (url.protocol === 'http:' || url.protocol === 'https:') && url.origin === value;
+  } catch {
+    return false;
+  }
+}
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.coerce.number().int().min(1).max(65535).default(5001),
@@ -23,6 +33,25 @@ const envSchema = z.object({
     .string()
     .regex(/^\d+[smhd]$/, 'must look like 30m, 1h or 7d')
     .default('1h'),
+
+  // Origins (scheme + host + port) of the frontend that may call this API,
+  // comma separated. A wildcard is refused: only listed origins get CORS access.
+  CORS_ORIGIN: z
+    .string()
+    .min(1, 'is required, for example http://localhost:5173')
+    .transform((value) =>
+      value
+        .split(',')
+        .map((origin) => origin.trim())
+        .filter(Boolean),
+    )
+    .pipe(
+      z
+        .array(
+          z.string().refine(isPlainOrigin, 'each origin must look like http://localhost:5173 (no wildcard, no path, no trailing slash)'),
+        )
+        .min(1, 'at least one origin is required'),
+    ),
 
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'http', 'verbose', 'debug', 'silly']).default('info'),
   LOG_DIR: z
