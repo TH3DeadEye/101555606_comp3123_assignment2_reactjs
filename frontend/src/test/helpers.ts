@@ -1,3 +1,5 @@
+import { AxiosError, type AxiosAdapter, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios';
+import { api } from '../api/client';
 import type { AuthUser, Employee } from '../api/types';
 
 const base64Url = (value: object): string =>
@@ -39,4 +41,25 @@ export function makeEmployee(overrides: Partial<Employee> = {}): Employee {
     updated_at: '2026-01-01T00:00:00.000Z',
     ...overrides,
   };
+}
+
+// ---- Fake network -----------------------------------------------------------
+
+const realAdapter = api.defaults.adapter;
+
+// Replaces the network with a function that answers every request. Any status
+// outside 200-299 rejects like a real failed request would.
+export function fakeServer(answer: (config: InternalAxiosRequestConfig) => { status: number; data?: unknown }): void {
+  const adapter: AxiosAdapter = (config) =>
+    new Promise((resolve, reject) => {
+      const { status, data } = answer(config);
+      const response = { data, status, statusText: '', headers: {}, config, request: {} } as AxiosResponse;
+      if (status >= 200 && status < 300) resolve(response);
+      else reject(new AxiosError(`Request failed with status code ${status}`, 'ERR_BAD_RESPONSE', config, {}, response));
+    });
+  api.defaults.adapter = adapter;
+}
+
+export function restoreServer(): void {
+  api.defaults.adapter = realAdapter;
 }

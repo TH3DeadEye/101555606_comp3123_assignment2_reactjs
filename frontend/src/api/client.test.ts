@@ -1,6 +1,5 @@
-import { AxiosError, type AxiosAdapter, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { makeJwt, testUser } from '../test/helpers';
+import { fakeServer, makeJwt, restoreServer, testUser } from '../test/helpers';
 import { saveSession } from '../utils/session';
 import { api, resolveApiOrigin, setUnauthorizedHandler } from './client';
 
@@ -32,23 +31,8 @@ describe('api client', () => {
   });
 });
 
-// Replaces the network with a function that answers every request.
-function fakeServer(answer: (config: InternalAxiosRequestConfig) => { status: number; data?: unknown }) {
-  const adapter: AxiosAdapter = (config) =>
-    new Promise((resolve, reject) => {
-      const { status, data } = answer(config);
-      const response = { data, status, statusText: '', headers: {}, config, request: {} } as AxiosResponse;
-      if (status >= 200 && status < 300) resolve(response);
-      else reject(new AxiosError(`Request failed with status code ${status}`, 'ERR_BAD_RESPONSE', config, {}, response));
-    });
-  api.defaults.adapter = adapter;
-}
-
 describe('request interceptor', () => {
-  const originalAdapter = api.defaults.adapter;
-  afterEach(() => {
-    api.defaults.adapter = originalAdapter;
-  });
+  afterEach(restoreServer);
 
   it('attaches the JWT as a Bearer token while a session exists', async () => {
     const token = makeJwt();
@@ -78,7 +62,6 @@ describe('request interceptor', () => {
 });
 
 describe('response interceptor (401 handling)', () => {
-  const originalAdapter = api.defaults.adapter;
   const onUnauthorized = vi.fn();
 
   beforeEach(() => {
@@ -86,7 +69,7 @@ describe('response interceptor (401 handling)', () => {
     setUnauthorizedHandler(onUnauthorized);
   });
   afterEach(() => {
-    api.defaults.adapter = originalAdapter;
+    restoreServer();
     setUnauthorizedHandler(null);
   });
 
