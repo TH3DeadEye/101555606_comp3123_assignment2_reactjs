@@ -1,3 +1,4 @@
+import path from 'node:path';
 import dotenv from 'dotenv';
 import { z } from 'zod';
 
@@ -8,6 +9,13 @@ dotenv.config({ quiet: true });
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.coerce.number().int().min(1).max(65535).default(5001),
+
+  LOG_LEVEL: z.enum(['error', 'warn', 'info', 'http', 'verbose', 'debug', 'silly']).default('info'),
+  LOG_DIR: z
+    .string()
+    .min(1)
+    .default('logs')
+    .transform((dir) => path.resolve(dir)),
 });
 
 const result = envSchema.safeParse(process.env);
