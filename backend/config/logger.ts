@@ -64,3 +64,12 @@ export const logger = winston.createLogger({
   exceptionHandlers: [new winston.transports.File({ filename: errorLog, format: fileFormat })],
   rejectionHandlers: [new winston.transports.File({ filename: errorLog, format: fileFormat })],
 });
+
+// Waits until every pending log line has been written. Call it before
+// process.exit() so the last message (for example a startup failure) is kept.
+export function flushLogs(): Promise<void> {
+  return new Promise((resolve) => {
+    logger.once('finish', () => resolve());
+    logger.end();
+  });
+}
