@@ -18,7 +18,7 @@ const STORED_NAME = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{1
 
 // Writes the uploaded picture to UPLOAD_DIR and returns the public path to
 // store in MongoDB (for example /uploads/3f2b....png).
-export async function saveImage(file: Express.Multer.File): Promise<string> {
+export async function saveImage(file: { buffer: Buffer }): Promise<string> {
   const type = detectImageType(file.buffer);
   if (!type) {
     throw new HttpError(400, 'Only JPEG, PNG and WebP images are allowed.', { code: 'INVALID_FILE_TYPE' });
