@@ -6,7 +6,12 @@ import { z } from 'zod';
 // { "$ne": null }).
 export function requiredText(label: string) {
   return z.string({
-    error: (issue) => (issue.input === undefined ? `${label} is required.` : `${label} must be text.`),
+    error: (issue) => {
+      // Only wrong-type problems get these messages. Returning undefined lets
+      // every other check (min, max, regex, ...) use its own message.
+      if (issue.code !== 'invalid_type') return undefined;
+      return issue.input === undefined ? `${label} is required.` : `${label} must be text.`;
+    },
   });
 }
 
