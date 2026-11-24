@@ -63,3 +63,13 @@ export function fakeServer(answer: (config: InternalAxiosRequestConfig) => { sta
 export function restoreServer(): void {
   api.defaults.adapter = realAdapter;
 }
+
+// The server cannot be reached at all (no response).
+export function fakeNetworkFailure(): void {
+  api.defaults.adapter = (config) => Promise.reject(new AxiosError('Network Error', 'ERR_NETWORK', config));
+}
+
+// The request is sent but never answered, which shows what the UI does while waiting.
+export function fakePendingServer(): void {
+  api.defaults.adapter = () => new Promise(() => undefined);
+}
