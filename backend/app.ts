@@ -3,6 +3,7 @@ import express from 'express';
 import helmet from 'helmet';
 import { env } from './config/env';
 import { errorHandler } from './middleware/errorHandler';
+import { noStore } from './middleware/noStore';
 import { notFound } from './middleware/notFound';
 import { requestLogger } from './middleware/requestLogger';
 import { healthRoutes } from './routes/healthRoutes';
@@ -32,6 +33,7 @@ export function createApp() {
   );
 
   app.use(requestLogger);
+  app.use('/api', noStore);
   app.use(express.json({ limit: '10kb' }));
 
   app.use('/health', healthRoutes);
