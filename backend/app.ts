@@ -7,6 +7,7 @@ import { noStore } from './middleware/noStore';
 import { notFound } from './middleware/notFound';
 import { apiLimiter } from './middleware/rateLimiter';
 import { requestLogger } from './middleware/requestLogger';
+import { employeeRoutes } from './routes/employeeRoutes';
 import { healthRoutes } from './routes/healthRoutes';
 import { userRoutes } from './routes/userRoutes';
 
@@ -39,6 +40,7 @@ export function createApp() {
 
   app.use('/health', healthRoutes);
   app.use('/api/v1/user', userRoutes);
+  app.use('/api/v1/emp', employeeRoutes);
 
   // These two must stay last: unknown routes, then the central error handler.
   app.use(notFound);
