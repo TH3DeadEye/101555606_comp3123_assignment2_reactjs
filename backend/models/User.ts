@@ -2,7 +2,7 @@ import bcrypt from 'bcrypt';
 import { Schema, model, type HydratedDocument, type Model } from 'mongoose';
 
 // bcrypt cost factor: each +1 doubles the time an attacker needs per guess.
-const BCRYPT_ROUNDS = 12;
+export const BCRYPT_ROUNDS = 12;
 
 export interface IUser {
   username: string;

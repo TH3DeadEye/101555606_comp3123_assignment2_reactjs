@@ -33,3 +33,32 @@ export const signupSchema = z.strictObject(
 );
 
 export type SignupInput = z.infer<typeof signupSchema>;
+
+// Login accepts a username, an email, or both (then both must belong to the
+// same account). The password is not checked against the signup rules, so the
+// login form never reveals what the rules are and old passwords keep working.
+export const loginSchema = z
+  .strictObject(
+    {
+      username: requiredText('Username')
+        .trim()
+        .min(1, 'Username cannot be empty.')
+        .max(254, 'Username is too long.')
+        .toLowerCase()
+        .optional(),
+      email: emailField.optional(),
+      password: requiredText('Password').min(1, 'Password is required.'),
+    },
+    { error: 'A JSON body with a username or email and a password is required.' },
+  )
+  .superRefine((data, ctx) => {
+    if (!data.username && !data.email) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['username'],
+        message: 'Enter your username or your email address.',
+      });
+    }
+  });
+
+export type LoginInput = z.infer<typeof loginSchema>;
