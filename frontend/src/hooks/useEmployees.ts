@@ -63,6 +63,7 @@ export function useDeleteEmployee() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => deleteEmployee(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: employeeKeys.all }),
+    // Also after a failure: a 404 means somebody already deleted it, and the list should show that.
+    onSettled: () => queryClient.invalidateQueries({ queryKey: employeeKeys.all }),
   });
 }
