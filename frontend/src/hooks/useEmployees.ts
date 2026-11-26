@@ -63,7 +63,16 @@ export function useDeleteEmployee() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => deleteEmployee(id),
-    // Also after a failure: a 404 means somebody already deleted it, and the list should show that.
-    onSettled: () => queryClient.invalidateQueries({ queryKey: employeeKeys.all }),
+    // Runs after a failure too: a 404 means somebody already deleted it, and the list should show that.
+    onSettled: async (_data, _error, id) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: [...employeeKeys.all, 'list'] }),
+        queryClient.invalidateQueries({ queryKey: [...employeeKeys.all, 'search'] }),
+        // The employee's own page is marked out of date but NOT reloaded: asking the
+        // server for an employee that was just deleted would only produce a 404 flash
+        // before the redirect.
+        queryClient.invalidateQueries({ queryKey: employeeKeys.detail(id), refetchType: 'none' }),
+      ]);
+    },
   });
 }
