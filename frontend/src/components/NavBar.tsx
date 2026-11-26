@@ -15,9 +15,15 @@ import { Link as RouterLink, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useNotify } from '../hooks/useNotify';
 
-// The link under the current page is highlighted (NavLink adds the "active"
-// class and aria-current="page" by itself).
-const linkSx = { color: 'inherit', '&.active': { bgcolor: 'rgba(255, 255, 255, 0.18)' } } as const;
+// The link of the current page is highlighted (NavLink adds the "active" class
+// and aria-current="page" by itself). The highlight is DARKER than the bar: a
+// lighter one would leave the white text with only 4:1 contrast, below the 4.5:1
+// that WCAG AA requires (found with the axe accessibility audit).
+const linkSx = {
+  color: 'inherit',
+  '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.08)' },
+  '&.active': { bgcolor: 'primary.dark' },
+} as const;
 
 export function NavBar() {
   const { isAuthenticated, user, logout } = useAuth();
@@ -93,7 +99,8 @@ export function NavBar() {
           >
             <MenuIcon />
           </IconButton>
-          <Menu anchorEl={menuAnchor} open={menuAnchor !== null} onClose={closeMenu}>
+          {/* disablePortal keeps the menu inside the header, so it belongs to a page landmark */}
+          <Menu anchorEl={menuAnchor} open={menuAnchor !== null} onClose={closeMenu} slotProps={{ root: { disablePortal: true } }}>
             {isAuthenticated
               ? [
                   <MenuItem key="who" disabled>
