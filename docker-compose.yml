@@ -1,0 +1,110 @@
+# Starts the whole application with one command:
+#
+#     docker compose up --build
+#
+# Before the first run copy .env.example to .env and fill in the passwords.
+# Docker Compose reads .env by itself. Nothing secret is written in this file.
+name: comp3123-employee-manager
+
+services:
+  # ---- MongoDB -------------------------------------------------------------
+  mongo:
+    image: mongo:8
+    restart: unless-stopped
+    environment:
+      # The root account is only used to set the database up (see the init script)
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:?Set MONGO_ROOT_USER in .env}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?Set MONGO_ROOT_PASSWORD in .env}
+      # Used by docker/mongo-init/01-create-app-user.js
+      MONGO_DB: ${MONGO_DB:-comp3123_assignment2}
+      MONGO_APP_USER: ${MONGO_APP_USER:?Set MONGO_APP_USER in .env}
+      MONGO_APP_PASSWORD: ${MONGO_APP_PASSWORD:?Set MONGO_APP_PASSWORD in .env}
+    volumes:
+      - mongo-data:/data/db # the database survives "docker compose down"
+      - ./docker/mongo-init:/docker-entrypoint-initdb.d:ro
+    # There is deliberately no "ports:" entry: MongoDB is NOT reachable from the
+    # host machine, only from the other containers of this project. Use
+    # mongo-express (below) to look inside it.
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  # ---- Database viewer -----------------------------------------------------
+  mongo-express:
+    image: mongo-express:1.0.2-20-alpine3.19
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+    ports:
+      # 127.0.0.1: reachable from this computer only, not from the network
+      - "127.0.0.1:8081:8081"
+    environment:
+      # Uses the limited application account, so it only sees the application database
+      ME_CONFIG_MONGODB_URL: mongodb://${MONGO_APP_USER}:${MONGO_APP_PASSWORD}@mongo:27017/${MONGO_DB:-comp3123_assignment2}?authSource=${MONGO_DB:-comp3123_assignment2}
+      ME_CONFIG_MONGODB_ENABLE_ADMIN: "false"
+      ME_CONFIG_BASICAUTH_USERNAME: ${MONGO_EXPRESS_USER:?Set MONGO_EXPRESS_USER in .env}
+      ME_CONFIG_BASICAUTH_PASSWORD: ${MONGO_EXPRESS_PASSWORD:?Set MONGO_EXPRESS_PASSWORD in .env}
+
+  # ---- Backend API ---------------------------------------------------------
+  backend:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+    ports:
+      - "5001:5001"
+    environment:
+      NODE_ENV: production
+      PORT: "5001"
+      # "mongo" is the name of the service above: containers find each other by
+      # service name, never by localhost.
+      MONGODB_URI: mongodb://${MONGO_APP_USER}:${MONGO_APP_PASSWORD}@mongo:27017/${MONGO_DB:-comp3123_assignment2}?authSource=${MONGO_DB:-comp3123_assignment2}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env (at least 32 characters)}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1h}
+      # The address of the FRONTEND, as the browser sees it
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      UPLOAD_DIR: /app/uploads
+      LOG_DIR: /app/logs
+    volumes:
+      - uploads:/app/uploads # profile pictures survive container replacement
+      - logs:/app/logs
+    healthcheck:
+      # Asks the API's own /health endpoint (it also checks the database)
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5001/health').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # ---- Frontend (React, served by nginx) -------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Written into the JavaScript at build time: where the browser finds the API
+        VITE_API_URL: ${API_PUBLIC_URL:-http://localhost:5001}
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "3000:8080"
+    environment:
+      # Used by nginx for the Content-Security-Policy header
+      API_ORIGIN: ${API_PUBLIC_URL:-http://localhost:5001}
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  mongo-data:
+  uploads:
+  logs:
