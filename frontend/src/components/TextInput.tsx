@@ -19,6 +19,8 @@ export interface TextInputProps {
   inputMode?: 'text' | 'decimal' | 'email' | 'numeric';
   maxLength?: number;
   inputRef?: Ref<HTMLInputElement>;
+  // 'none' when the surrounding layout (a grid) already provides the spacing
+  margin?: 'none' | 'normal';
 }
 
 // A controlled text field with the same look, labels and error behaviour
@@ -40,6 +42,7 @@ export function TextInput({
   inputMode,
   maxLength,
   inputRef,
+  margin = 'normal',
 }: TextInputProps) {
   const helper =
     error && hint ? (
@@ -67,7 +70,7 @@ export function TextInput({
       autoFocus={autoFocus}
       inputRef={inputRef}
       fullWidth
-      margin="normal"
+      margin={margin}
       slotProps={{
         // a <div>, so a hint can contain a list
         formHelperText: { component: 'div' },
