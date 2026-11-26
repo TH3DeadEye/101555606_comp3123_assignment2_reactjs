@@ -8,7 +8,8 @@ import { saveSession } from '../utils/session';
 import { makeJwt, testUser } from './helpers';
 
 interface Options {
-  route?: string;
+  // A URL, or a URL together with router state (what a redirect would carry)
+  route?: string | { pathname: string; state?: unknown };
   authenticated?: boolean;
 }
 
