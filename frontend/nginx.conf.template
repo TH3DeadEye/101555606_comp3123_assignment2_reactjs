@@ -1,0 +1,39 @@
+# Serves the built React app. ${API_ORIGIN} is replaced with the backend address
+# (for example http://localhost:5001) when the container starts.
+server {
+    listen 8080;
+    server_name _;
+    server_tokens off;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_types text/css application/javascript application/json image/svg+xml;
+
+    # Security headers. Content-Security-Policy tells the browser which addresses
+    # the page may load scripts, images and data from. Anything else is blocked,
+    # which limits what injected code could do with the login token.
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: ${API_ORIGIN}; connect-src 'self' ${API_ORIGIN}; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Referrer-Policy "no-referrer" always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+
+    # Build files have a content hash in their name (index-D9EgO_sa.js), so they
+    # never change and can be cached for a year.
+    location /assets/ {
+        expires 1y;
+        try_files $uri =404;
+    }
+
+    # Single-page app: any other address returns index.html and React Router
+    # decides what to show. index.html itself is never cached, so a new build is
+    # picked up straight away.
+    location / {
+        expires -1;
+        try_files $uri /index.html;
+    }
+}
