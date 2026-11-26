@@ -1,0 +1,15 @@
+# Things that must never be copied into the image
+node_modules
+dist
+.env
+.env.*
+!.env.example
+
+# Generated at run time, or only useful on the host
+logs
+uploads
+postman
+*.log
+.DS_Store
+Dockerfile
+.dockerignore
