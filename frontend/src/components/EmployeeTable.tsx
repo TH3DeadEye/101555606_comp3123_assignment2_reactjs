@@ -44,6 +44,20 @@ const COLUMNS: Column[] = [
 const hideBelow = (breakpoint?: 'md' | 'lg') =>
   breakpoint ? { display: { xs: 'none', [breakpoint]: 'table-cell' } } : undefined;
 
+// Lets a long address break after the @ on a narrow screen, instead of in the
+// middle of a word. (The text content stays exactly the address.)
+function BreakableEmail({ email }: { email: string }) {
+  const at = email.indexOf('@');
+  if (at < 0) return <>{email}</>;
+  return (
+    <>
+      {email.slice(0, at + 1)}
+      <wbr />
+      {email.slice(at + 1)}
+    </>
+  );
+}
+
 interface EmployeeTableProps {
   employees: Employee[];
   onDelete: (employee: Employee) => void;
@@ -105,13 +119,13 @@ export function EmployeeTable({ employees, onDelete, deletingId = null }: Employ
               const deleting = deletingId === employee._id;
               return (
                 <TableRow key={employee._id} hover>
-                  <TableCell component="th" scope="row">
-                    <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
+                  <TableCell component="th" scope="row" sx={{ px: { xs: 1, sm: 2 } }}>
+                    <Stack direction="row" spacing={{ xs: 1.5, sm: 2 }} sx={{ alignItems: 'center' }}>
                       <EmployeeAvatar employee={employee} />
                       <Box sx={{ minWidth: 0 }}>
                         <Typography sx={{ fontWeight: 600 }}>{name}</Typography>
                         <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
-                          {employee.email}
+                          <BreakableEmail email={employee.email} />
                         </Typography>
                         <Typography variant="body2" sx={{ display: { xs: 'block', md: 'none' } }}>
                           {employee.position} · {employee.department}
@@ -125,7 +139,7 @@ export function EmployeeTable({ employees, onDelete, deletingId = null }: Employ
                   <TableCell align="right" sx={hideBelow('lg')}>
                     {formatSalary(employee.salary)}
                   </TableCell>
-                  <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                  <TableCell align="right" sx={{ whiteSpace: 'nowrap', px: { xs: 0.5, sm: 2 } }}>
                     <Tooltip title="View details">
                       <IconButton component={RouterLink} to={`/employees/${employee._id}`} aria-label={`View ${name}`}>
                         <VisibilityIcon />
