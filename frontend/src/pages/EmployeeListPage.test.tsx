@@ -234,3 +234,143 @@ describe('EmployeeListPage: deleting', () => {
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
   });
 });
+
+// Answers the list endpoint with `all` and the search endpoint with whatever
+// `search` returns, remembering the query parameters of every search.
+function searchableBackend(all: Employee[], search: (params: { department?: string; position?: string }) => Employee[] | { status: number; data: unknown }) {
+  const searches: { department?: string; position?: string }[] = [];
+  const requests: string[] = [];
+  fakeServer((config) => {
+    requests.push(`${config.method?.toUpperCase()} ${config.url}`);
+    if (config.url === '/emp/employees/search') {
+      const params = (config.params ?? {}) as { department?: string; position?: string };
+      searches.push(params);
+      const result = search(params);
+      return Array.isArray(result) ? { status: 200, data: result } : result;
+    }
+    return { status: 200, data: all };
+  });
+  return { searches, requests };
+}
+
+describe('EmployeeListPage: searching', () => {
+  // "Zed" is in Sales: if the browser filtered the list itself he could never appear for "eng"
+  const zed = makeEmployee({ _id: 'e9', first_name: 'Zed', last_name: 'Zebra', department: 'Sales', position: 'Rep' });
+
+  it('shows the search bar when there are employees, and hides it when there are none', async () => {
+    fakeServer(() => ({ status: 200, data: employees }));
+    const { unmount } = renderList();
+    expect(await screen.findByRole('search', { name: 'Search employees' })).toBeInTheDocument();
+    unmount();
+
+    fakeServer(() => ({ status: 200, data: [] }));
+    renderList();
+    await screen.findByRole('heading', { name: 'No employees yet' });
+    expect(screen.queryByRole('search')).not.toBeInTheDocument();
+  });
+
+  it('asks the backend to search and shows exactly what it returns (no filtering in the browser)', async () => {
+    const user = userEvent.setup();
+    const { searches } = searchableBackend(employees, () => [zed]);
+    renderList();
+
+    await user.type(await screen.findByLabelText('Department'), 'eng');
+
+    expect(await screen.findByRole('row', { name: /Zed Zebra/ })).toBeInTheDocument();
+    expect(screen.queryByRole('row', { name: /Jane Doe/ })).not.toBeInTheDocument();
+    expect(searches).toEqual([{ department: 'eng' }]);
+    expect(screen.getByText('1 employee matches your search')).toBeInTheDocument();
+  });
+
+  it('waits for a pause in typing: one request, not one per keystroke', async () => {
+    const user = userEvent.setup();
+    const { searches } = searchableBackend(employees, () => [zed]);
+    renderList();
+
+    await user.type(await screen.findByLabelText('Department'), 'engineering');
+    await screen.findByRole('row', { name: /Zed Zebra/ });
+
+    expect(searches).toEqual([{ department: 'engineering' }]);
+  });
+
+  it('can search by department and position together', async () => {
+    const user = userEvent.setup();
+    const { searches } = searchableBackend(employees, () => [zed]);
+    renderList();
+
+    await user.type(await screen.findByLabelText('Department'), 'eng');
+    await user.type(screen.getByLabelText('Position'), 'dev');
+    await screen.findByRole('row', { name: /Zed Zebra/ });
+
+    expect(searches.at(-1)).toEqual({ department: 'eng', position: 'dev' });
+  });
+
+  it('can search by position alone', async () => {
+    const user = userEvent.setup();
+    const { searches } = searchableBackend(employees, () => [zed]);
+    renderList();
+
+    await user.type(await screen.findByLabelText('Position'), 'dev');
+    await screen.findByRole('row', { name: /Zed Zebra/ });
+
+    expect(searches).toEqual([{ position: 'dev' }]);
+  });
+
+  it('does not search for spaces', async () => {
+    const user = userEvent.setup();
+    const { searches } = searchableBackend(employees, () => [zed]);
+    renderList();
+
+    await user.type(await screen.findByLabelText('Department'), '   ');
+    await new Promise((resolve) => setTimeout(resolve, 500)); // longer than the debounce
+
+    expect(searches).toHaveLength(0);
+    expect(screen.getByRole('row', { name: /Jane Doe/ })).toBeInTheDocument();
+  });
+
+  it('"Clear search" returns to the full list at once and empties the boxes', async () => {
+    const user = userEvent.setup();
+    const { requests } = searchableBackend(employees, () => [zed]);
+    renderList();
+    await user.type(await screen.findByLabelText('Department'), 'eng');
+    await screen.findByRole('row', { name: /Zed Zebra/ });
+
+    await user.click(screen.getByRole('button', { name: 'Clear search' }));
+
+    expect(screen.getByLabelText('Department')).toHaveValue('');
+    expect(await screen.findByRole('row', { name: /Jane Doe/ })).toBeInTheDocument();
+    expect(screen.queryByRole('row', { name: /Zed Zebra/ })).not.toBeInTheDocument();
+    expect(screen.getByText('2 employees')).toBeInTheDocument();
+    expect(requests.filter((request) => request === 'GET /emp/employees/search')).toHaveLength(1);
+  });
+
+  it('says so when nothing matches, and keeps the search bar to try again', async () => {
+    const user = userEvent.setup();
+    searchableBackend(employees, () => []);
+    renderList();
+
+    await user.type(await screen.findByLabelText('Department'), 'nothing');
+
+    expect(await screen.findByRole('heading', { name: 'No employees match your search' })).toBeInTheDocument();
+    expect(screen.getByRole('search')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Show all employees' }));
+    expect(await screen.findByRole('row', { name: /Jane Doe/ })).toBeInTheDocument();
+  });
+
+  it('shows a friendly error when the search request fails, and recovers', async () => {
+    const user = userEvent.setup();
+    let failing = true;
+    searchableBackend(employees, () => (failing ? { status: 500, data: { status: 'error', code: 'INTERNAL_ERROR' } } : [zed]));
+    renderList();
+
+    await user.type(await screen.findByLabelText('Department'), 'eng');
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('The server ran into a problem. Please try again in a moment.');
+    expect(screen.getByRole('search')).toBeInTheDocument();
+
+    failing = false;
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(await screen.findByRole('row', { name: /Zed Zebra/ })).toBeInTheDocument();
+  });
+});
