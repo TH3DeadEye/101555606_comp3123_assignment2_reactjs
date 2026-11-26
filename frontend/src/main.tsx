@@ -6,6 +6,7 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import { queryClient } from './api/queryClient';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { AuthProvider } from './context/AuthProvider';
 import { NotificationProvider } from './context/NotificationProvider';
 import { theme } from './theme';
@@ -17,15 +18,17 @@ createRoot(container).render(
   <StrictMode>
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
-          <AuthProvider>
-            <NotificationProvider>
-              <App />
-            </NotificationProvider>
-          </AuthProvider>
-        </BrowserRouter>
-      </QueryClientProvider>
+      <ErrorBoundary>
+        <QueryClientProvider client={queryClient}>
+          <BrowserRouter>
+            <AuthProvider>
+              <NotificationProvider>
+                <App />
+              </NotificationProvider>
+            </AuthProvider>
+          </BrowserRouter>
+        </QueryClientProvider>
+      </ErrorBoundary>
     </ThemeProvider>
   </StrictMode>,
 );
