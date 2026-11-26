@@ -14,7 +14,7 @@ export default function NotFoundPage() {
       <Typography variant="h1" component="h1">
         Page not found
       </Typography>
-      <Typography color="text.secondary">
+      <Typography sx={{ color: 'text.secondary' }}>
         The page you are looking for does not exist or has been moved.
       </Typography>
       <Button component={RouterLink} to={isAuthenticated ? '/employees' : '/login'} variant="contained">

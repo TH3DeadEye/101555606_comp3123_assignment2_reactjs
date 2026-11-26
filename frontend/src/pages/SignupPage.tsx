@@ -90,7 +90,7 @@ export default function SignupPage() {
 
   return (
     <AuthCard title="Sign up">
-      <Typography color="text.secondary">Create an account to manage your own employees.</Typography>
+      <Typography sx={{ color: 'text.secondary' }}>Create an account to manage your own employees.</Typography>
 
       <Box component="form" ref={formRef} onSubmit={handleSubmit} noValidate sx={{ mt: 1 }}>
         <TextInput

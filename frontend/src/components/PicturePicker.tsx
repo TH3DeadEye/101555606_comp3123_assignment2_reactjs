@@ -62,11 +62,11 @@ export function PicturePicker({ file, onPick, currentPicture, personName, error,
               </Button>
             )}
           </Stack>
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}>
             JPEG, PNG or WebP, up to 2 MB.
           </Typography>
           {error && (
-            <Typography id={errorId} role="alert" variant="caption" color="error" sx={{ display: 'block', mt: 0.5 }}>
+            <Typography id={errorId} role="alert" variant="caption" sx={{ color: 'error.main', display: 'block', mt: 0.5 }}>
               {error}
             </Typography>
           )}

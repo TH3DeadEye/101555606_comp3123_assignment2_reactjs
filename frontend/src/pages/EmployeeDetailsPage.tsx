@@ -23,7 +23,7 @@ import { formatDate, formatDateTime, formatSalary, fullName } from '../utils/for
 function Detail({ label, children }: { label: string; children: ReactNode }) {
   return (
     <Box sx={{ display: 'contents' }}>
-      <Typography component="dt" color="text.secondary">
+      <Typography component="dt" sx={{ color: 'text.secondary' }}>
         {label}
       </Typography>
       <Typography component="dd" sx={{ m: 0, overflowWrap: 'anywhere' }}>

@@ -30,6 +30,8 @@ describe('EmptyState', () => {
 
     expect(screen.getByRole('heading', { name: 'No employees yet' })).toBeInTheDocument();
     expect(screen.getByText('Add your first employee.')).toBeInTheDocument();
+    // regression: secondary text is grey (60% black), not plain black
+    expect(screen.getByText('Add your first employee.')).toHaveStyle({ color: 'rgba(0, 0, 0, 0.6)' });
     expect(screen.getByRole('button', { name: 'Add' })).toBeInTheDocument();
   });
 });

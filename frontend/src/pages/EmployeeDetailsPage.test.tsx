@@ -52,6 +52,9 @@ describe('EmployeeDetailsPage: showing an employee', () => {
     expect(screen.getByText('$85,000.00')).toBeInTheDocument();
     expect(screen.getByText('Mar 1, 2024')).toBeInTheDocument();
     expect(screen.getByText('Date of joining')).toBeInTheDocument();
+    // regression: the labels are grey, the values are not
+    expect(screen.getByText('Date of joining')).toHaveStyle({ color: 'rgba(0, 0, 0, 0.6)' });
+    expect(screen.getByText('Mar 1, 2024')).not.toHaveStyle({ color: 'rgba(0, 0, 0, 0.6)' });
   });
 
   it('shows the profile picture, or a placeholder when there is none', async () => {

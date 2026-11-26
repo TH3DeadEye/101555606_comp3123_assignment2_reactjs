@@ -14,7 +14,7 @@ export function LoadingState({ label = 'Loading…' }: { label?: string }) {
   return (
     <Box role="status" aria-live="polite" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, py: 8 }}>
       <CircularProgress size={28} />
-      <Typography color="text.secondary">{label}</Typography>
+      <Typography sx={{ color: 'text.secondary' }}>{label}</Typography>
     </Box>
   );
 }
@@ -35,7 +35,7 @@ export function EmptyState({ icon, title, message, action }: EmptyStateProps) {
         {title}
       </Typography>
       {message && (
-        <Typography color="text.secondary" sx={{ mb: action ? 3 : 0 }}>
+        <Typography sx={{ color: 'text.secondary', mb: action ? 3 : 0 }}>
           {message}
         </Typography>
       )}
@@ -63,7 +63,7 @@ export function ErrorState({ error, onRetry, backTo }: ErrorStateProps) {
       <Typography variant="h3" component="h2" gutterBottom>
         {error.kind === 'forbidden' ? 'Access denied' : error.kind === 'not-found' ? 'Not found' : 'Something went wrong'}
       </Typography>
-      <Typography color="text.secondary" sx={{ mb: 3 }}>
+      <Typography sx={{ color: 'text.secondary', mb: 3 }}>
         {error.message}
       </Typography>
       <Box sx={{ display: 'flex', gap: 1.5, justifyContent: 'center', flexWrap: 'wrap' }}>

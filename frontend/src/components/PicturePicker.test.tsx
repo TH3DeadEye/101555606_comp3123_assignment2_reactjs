@@ -85,6 +85,8 @@ describe('PicturePicker', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent('Only JPEG, PNG and WebP pictures are allowed.');
     expect(screen.getByLabelText('Profile picture file')).toHaveAccessibleDescription('Only JPEG, PNG and WebP pictures are allowed.');
+    // regression: MUI 9 silently ignores a `color` prop on Typography, which once made this black
+    expect(screen.getByRole('alert')).toHaveStyle({ color: 'rgb(211, 47, 47)' });
   });
 
   it('can pick the same file again after removing it', async () => {

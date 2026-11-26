@@ -124,7 +124,7 @@ export function EmployeeTable({ employees, onDelete, deletingId = null }: Employ
                       <EmployeeAvatar employee={employee} />
                       <Box sx={{ minWidth: 0 }}>
                         <Typography sx={{ fontWeight: 600 }}>{name}</Typography>
-                        <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
+                        <Typography variant="body2" sx={{ color: 'text.secondary', overflowWrap: 'anywhere' }}>
                           <BreakableEmail email={employee.email} />
                         </Typography>
                         <Typography variant="body2" sx={{ display: { xs: 'block', md: 'none' } }}>

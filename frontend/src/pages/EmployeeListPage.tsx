@@ -147,7 +147,7 @@ export default function EmployeeListPage() {
             Employees
           </Typography>
           {query.data && showSearch && (
-            <Typography color="text.secondary" aria-live="polite">
+            <Typography sx={{ color: 'text.secondary' }} aria-live="polite">
               {summary}
             </Typography>
           )}
